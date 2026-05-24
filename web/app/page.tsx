@@ -65,7 +65,16 @@ export default function Home() {
   const connected = sauna.status?.connected ?? false;
   const power = state?.power ?? false;
 
-  const togglePower = () => sauna.run(() => api.setPower(!power));
+  const togglePower = () =>
+    sauna.run(async () => {
+      const next = !power;
+      // Turning off with an active "you're in" session? Offer to end it too.
+      if (!next && openVisit && window.confirm("End your sauna session too?")) {
+        await api.checkOut();
+        reloadVisits();
+      }
+      await api.setPower(next);
+    });
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top))]">
