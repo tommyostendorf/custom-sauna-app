@@ -222,6 +222,21 @@ export function More({ settings, reloadSettings, service, reloadService, hasCold
         </details>
       </Card>
 
+      {/* Setup & sharing guide */}
+      <Card>
+        <SectionLabel>Setup &amp; sharing</SectionLabel>
+        <p className="mb-3 text-sm text-muted">
+          Setting it up on a new sauna, or helping a friend get started? The full guide covers
+          everything — what to run, the Raspberry Pi option, and remote access.
+        </p>
+        <a
+          href="/setup/"
+          className="block rounded-2xl bg-ember py-3 text-center font-semibold text-black"
+        >
+          Open the setup guide
+        </a>
+      </Card>
+
       {/* Clearlight contact */}
       <Card>
         <SectionLabel>Sauna service &amp; support (Clearlight)</SectionLabel>
