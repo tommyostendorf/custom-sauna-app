@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+/* Warm dark "spa" theme — deep warm charcoal with an amber/ember glow. */
+@theme inline {
+  --color-bg: #130e0a;
+  --color-surface: #1e1711;
+  --color-surface-2: #2a2017;
+  --color-border: #3a2c1f;
+  --color-text: #f6ecdd;
+  --color-muted: #b59e84;
+  --color-ember: #ff7a1a;
+  --color-ember-soft: #ffb066;
+  --color-cool: #5db0ff;
+  --color-danger: #ef4444;
+  --font-sans: var(--font-geist-sans);
+}
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-image: radial-gradient(120% 80% at 50% 120%, rgba(255, 122, 26, 0.14), transparent 60%);
+  background-attachment: fixed;
+  min-height: 100dvh;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  overscroll-behavior-y: none;
+}
+
+* { -webkit-text-size-adjust: 100%; }

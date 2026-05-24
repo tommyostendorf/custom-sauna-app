@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Secrets / local config
+.env
+.env.local
+*.env
+
+# Build output
+dist/
+.next/
+out/
+
+# Bridge runtime data (presets, session history)
+bridge/data/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.vscode/

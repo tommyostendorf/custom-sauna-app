@@ -1,0 +1,13 @@
+{
+  "name": "Sauna",
+  "short_name": "Sauna",
+  "description": "Control your Clearlight sauna over the local network.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#130e0a",
+  "theme_color": "#130e0a",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
