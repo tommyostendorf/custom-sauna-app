@@ -262,8 +262,9 @@ export function More({ settings, reloadSettings, service, reloadService, hasCold
         Replay the setup guide
       </button>
 
-      <p className="pb-2 text-center text-xs text-muted">
-        Independent app · works with Clearlight® saunas · not affiliated with Clearlight
+      <p className="px-2 pb-2 text-center text-xs text-muted">
+        Insaunity · independent, works with Clearlight® saunas · not affiliated with Clearlight.
+        Controls a high-heat appliance — use at your own risk, never leave it unattended. No warranty.
       </p>
     </div>
   );
