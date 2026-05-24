@@ -14,6 +14,10 @@ import { SaunaState } from './gizwits/protocol';
 import {
   getPresets, savePreset, deletePreset,
   getSessions, startSession, endSession, updateOpenSessionMaxTemp,
+  getSettings, saveSettings,
+  getVisits, getOpenVisit, checkInVisit, checkOutVisit,
+  getPlunges, addPlunge,
+  getService, markCleaned, markServiced,
 } from './store';
 
 // --- Config ---
@@ -194,6 +198,36 @@ app.delete('/api/presets/:id', (req, res) => {
 
 // --- Session history ---
 app.get('/api/sessions', (_req, res) => res.json({ sessions: getSessions() }));
+
+// --- Settings ---
+app.get('/api/settings', (_req, res) => res.json({ settings: getSettings() }));
+
+app.put('/api/settings', (req, res) => {
+  const patch = req.body ?? {};
+  const next: Record<string, unknown> = {};
+  if (typeof patch.saunaName === 'string') next.saunaName = patch.saunaName.slice(0, 40);
+  res.json({ ok: true, settings: saveSettings(next) });
+});
+
+// --- Visits (time inside) ---
+app.get('/api/visits', (_req, res) => res.json({ visits: getVisits(), open: getOpenVisit() ?? null }));
+app.post('/api/visits/checkin', (_req, res) => res.json({ ok: true, visit: checkInVisit() }));
+app.post('/api/visits/checkout', (_req, res) => res.json({ ok: true, visit: checkOutVisit() }));
+
+// --- Cold plunges ---
+app.get('/api/plunges', (_req, res) => res.json({ plunges: getPlunges() }));
+app.post('/api/plunges', (req, res) => {
+  const { durationSec, tempF, note } = req.body ?? {};
+  if (typeof durationSec !== 'number' || durationSec < 0) {
+    return res.status(400).json({ error: 'Body must include durationSec (seconds)' });
+  }
+  res.json({ ok: true, plunge: addPlunge({ durationSec, tempF: typeof tempF === 'number' ? tempF : null, note: note ?? null }) });
+});
+
+// --- Service / cleaning schedule ---
+app.get('/api/service', (_req, res) => res.json({ service: getService() }));
+app.post('/api/service/cleaned', (_req, res) => res.json({ ok: true, service: markCleaned() }));
+app.post('/api/service/serviced', (_req, res) => res.json({ ok: true, service: markServiced() }));
 
 app.listen(PORT, () => {
   console.log(`Sauna bridge listening on http://0.0.0.0:${PORT}`);

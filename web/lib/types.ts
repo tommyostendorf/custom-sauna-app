@@ -33,3 +33,29 @@ export interface Session {
   durationMinutes: number | null;
   maxTempF: number;
 }
+
+export interface Settings {
+  saunaName: string;
+}
+
+export interface Visit {
+  id: string;
+  inAt: string;
+  outAt: string | null;
+  minutes: number | null;
+}
+
+export interface Plunge {
+  id: string;
+  at: string;
+  durationSec: number;
+  tempF: number | null;
+  note: string | null;
+}
+
+export interface ServiceState {
+  lastCleanedAt: string | null;
+  cleanIntervalDays: number;
+  lastServicedAt: string | null;
+  serviceIntervalDays: number;
+}

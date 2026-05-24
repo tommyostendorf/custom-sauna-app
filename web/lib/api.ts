@@ -6,7 +6,7 @@
  * URL (set in Vercel env). An optional token is sent as a Bearer header.
  */
 
-import { Preset, SaunaStatus, Session } from "./types";
+import { Plunge, Preset, SaunaStatus, Session, ServiceState, Settings, Visit } from "./types";
 
 const BASE =
   process.env.NEXT_PUBLIC_BRIDGE_URL?.replace(/\/$/, "") || "http://localhost:8787";
@@ -57,6 +57,25 @@ export const api = {
   deletePreset: (id: string) => req(`/api/presets/${id}`, { method: "DELETE" }),
 
   getSessions: () => req<{ sessions: Session[] }>("/api/sessions").then((r) => r.sessions),
+
+  getSettings: () => req<{ settings: Settings }>("/api/settings").then((r) => r.settings),
+  saveSettings: (patch: Partial<Settings>) =>
+    req<{ settings: Settings }>("/api/settings", {
+      method: "PUT",
+      body: JSON.stringify(patch),
+    }).then((r) => r.settings),
+
+  getVisits: () => req<{ visits: Visit[]; open: Visit | null }>("/api/visits"),
+  checkIn: () => post("/api/visits/checkin", {}),
+  checkOut: () => post("/api/visits/checkout", {}),
+
+  getPlunges: () => req<{ plunges: Plunge[] }>("/api/plunges").then((r) => r.plunges),
+  addPlunge: (durationSec: number, tempF?: number, note?: string) =>
+    post("/api/plunges", { durationSec, tempF, note }),
+
+  getService: () => req<{ service: ServiceState }>("/api/service").then((r) => r.service),
+  markCleaned: () => post("/api/service/cleaned", {}),
+  markServiced: () => post("/api/service/serviced", {}),
 };
 
 /**

@@ -3,19 +3,26 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useSauna } from "@/lib/useSauna";
-import { Preset, Session } from "@/lib/types";
+import { Plunge, Preset, Session, ServiceState, Settings, Visit } from "@/lib/types";
 import { StatusGauge } from "@/components/StatusGauge";
 import { Controls } from "@/components/Controls";
+import { CheckInCard } from "@/components/CheckInCard";
 import { Presets } from "@/components/Presets";
 import { History } from "@/components/History";
+import { More } from "@/components/More";
 
-type Tab = "control" | "presets" | "history";
+type Tab = "control" | "presets" | "history" | "more";
 
 export default function Home() {
   const sauna = useSauna();
   const [tab, setTab] = useState<Tab>("control");
   const [presets, setPresets] = useState<Preset[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [visits, setVisits] = useState<Visit[]>([]);
+  const [openVisit, setOpenVisit] = useState<Visit | null>(null);
+  const [plunges, setPlunges] = useState<Plunge[]>([]);
+  const [service, setService] = useState<ServiceState | null>(null);
 
   const reloadPresets = useCallback(() => {
     api.getPresets().then(setPresets).catch(() => {});
@@ -23,13 +30,32 @@ export default function Home() {
   const reloadSessions = useCallback(() => {
     api.getSessions().then(setSessions).catch(() => {});
   }, []);
+  const reloadSettings = useCallback(() => {
+    api.getSettings().then(setSettings).catch(() => {});
+  }, []);
+  const reloadVisits = useCallback(() => {
+    api.getVisits().then((r) => { setVisits(r.visits); setOpenVisit(r.open); }).catch(() => {});
+  }, []);
+  const reloadPlunges = useCallback(() => {
+    api.getPlunges().then(setPlunges).catch(() => {});
+  }, []);
+  const reloadService = useCallback(() => {
+    api.getService().then(setService).catch(() => {});
+  }, []);
 
   useEffect(() => {
     reloadPresets();
     reloadSessions();
-    const id = setInterval(reloadSessions, 15000);
+    reloadSettings();
+    reloadVisits();
+    reloadPlunges();
+    reloadService();
+    const id = setInterval(() => {
+      reloadSessions();
+      reloadVisits();
+    }, 15000);
     return () => clearInterval(id);
-  }, [reloadPresets, reloadSessions]);
+  }, [reloadPresets, reloadSessions, reloadSettings, reloadVisits, reloadPlunges, reloadService]);
 
   const state = sauna.status?.state ?? null;
   const connected = sauna.status?.connected ?? false;
@@ -38,7 +64,7 @@ export default function Home() {
     <main className="mx-auto flex min-h-dvh max-w-md flex-col px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top))]">
       {/* Header */}
       <header className="flex items-center justify-between py-3">
-        <h1 className="text-xl font-semibold tracking-tight">Sauna</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{settings?.saunaName || "Sauna"}</h1>
         <div className="flex items-center gap-2 text-xs text-muted">
           <span className={`h-2.5 w-2.5 rounded-full ${connected ? "bg-ember" : "bg-danger"}`} />
           {connected ? "Connected" : "Offline"}
@@ -55,7 +81,7 @@ export default function Home() {
 
       {/* Tabs */}
       <nav className="my-4 flex rounded-full border border-border bg-surface p-1 text-sm">
-        {(["control", "presets", "history"] as Tab[]).map((t) => (
+        {(["control", "presets", "history", "more"] as Tab[]).map((t) => (
           <button
             key={t}
             type="button"
@@ -71,7 +97,10 @@ export default function Home() {
 
       {/* Tab content */}
       {tab === "control" && (
-        <Controls state={state} busy={sauna.busy} connected={connected} run={sauna.run} />
+        <div className="flex flex-col gap-4">
+          <CheckInCard openVisit={openVisit} reload={reloadVisits} />
+          <Controls state={state} busy={sauna.busy} connected={connected} run={sauna.run} />
+        </div>
       )}
       {tab === "presets" && (
         <Presets
@@ -83,7 +112,17 @@ export default function Home() {
           reloadPresets={reloadPresets}
         />
       )}
-      {tab === "history" && <History sessions={sessions} />}
+      {tab === "history" && (
+        <History sessions={sessions} visits={visits} plunges={plunges} reloadPlunges={reloadPlunges} />
+      )}
+      {tab === "more" && (
+        <More
+          settings={settings}
+          reloadSettings={reloadSettings}
+          service={service}
+          reloadService={reloadService}
+        />
+      )}
 
       {/* Error toast */}
       {sauna.error && (

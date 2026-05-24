@@ -26,9 +26,40 @@ export interface Session {
   maxTempF: number;
 }
 
+export interface Settings {
+  saunaName: string;
+}
+
+/** A real visit — when the person actually got in and out (separate from heater on/off). */
+export interface Visit {
+  id: string;
+  inAt: string;
+  outAt: string | null;
+  minutes: number | null;
+}
+
+export interface Plunge {
+  id: string;
+  at: string;
+  durationSec: number;
+  tempF: number | null;
+  note: string | null;
+}
+
+export interface ServiceState {
+  lastCleanedAt: string | null;
+  cleanIntervalDays: number;
+  lastServicedAt: string | null;
+  serviceIntervalDays: number;
+}
+
 interface Data {
   presets: Preset[];
   sessions: Session[];
+  settings: Settings;
+  visits: Visit[];
+  plunges: Plunge[];
+  service: ServiceState;
 }
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
@@ -41,6 +72,10 @@ const DEFAULTS: Data = {
     { id: 'p3', name: 'Warm Up in 30', emoji: '⏰', temperatureF: 160, timerMinutes: 40, delayedStartMinutes: 30, internalLight: true, externalLight: false },
   ],
   sessions: [],
+  settings: { saunaName: 'My Sauna' },
+  visits: [],
+  plunges: [],
+  service: { lastCleanedAt: null, cleanIntervalDays: 7, lastServicedAt: null, serviceIntervalDays: 180 },
 };
 
 let data: Data = DEFAULTS;
@@ -118,4 +153,74 @@ export function endSession(): void {
   open.endedAt = ended.toISOString();
   open.durationMinutes = Math.round((ended.getTime() - new Date(open.startedAt).getTime()) / 60000);
   save();
+}
+
+// --- Settings ---
+export const getSettings = (): Settings => data.settings;
+
+export function saveSettings(patch: Partial<Settings>): Settings {
+  data.settings = { ...data.settings, ...patch };
+  save();
+  return data.settings;
+}
+
+// --- Visits (time actually spent inside) ---
+export const getVisits = (): Visit[] => data.visits.slice().reverse();
+export const getOpenVisit = (): Visit | undefined => data.visits.find((v) => v.outAt === null);
+
+export function checkInVisit(): Visit {
+  let open = data.visits.find((v) => v.outAt === null);
+  if (!open) {
+    open = { id: 'v' + Date.now(), inAt: new Date().toISOString(), outAt: null, minutes: null };
+    data.visits.push(open);
+    save();
+  }
+  return open;
+}
+
+export function checkOutVisit(): Visit | null {
+  const open = data.visits.find((v) => v.outAt === null);
+  if (!open) return null;
+  const out = new Date();
+  open.outAt = out.toISOString();
+  open.minutes = Math.max(1, Math.round((out.getTime() - new Date(open.inAt).getTime()) / 60000));
+  save();
+  return open;
+}
+
+// --- Cold plunges ---
+export const getPlunges = (): Plunge[] => data.plunges.slice().reverse();
+
+export function addPlunge(p: { durationSec: number; tempF?: number | null; note?: string | null }): Plunge {
+  const plunge: Plunge = {
+    id: 'cp' + Date.now(),
+    at: new Date().toISOString(),
+    durationSec: Math.max(0, Math.round(p.durationSec)),
+    tempF: p.tempF ?? null,
+    note: p.note ?? null,
+  };
+  data.plunges.push(plunge);
+  save();
+  return plunge;
+}
+
+// --- Service / cleaning schedule ---
+export const getService = (): ServiceState => data.service;
+
+export function updateService(patch: Partial<ServiceState>): ServiceState {
+  data.service = { ...data.service, ...patch };
+  save();
+  return data.service;
+}
+
+export function markCleaned(): ServiceState {
+  data.service.lastCleanedAt = new Date().toISOString();
+  save();
+  return data.service;
+}
+
+export function markServiced(): ServiceState {
+  data.service.lastServicedAt = new Date().toISOString();
+  save();
+  return data.service;
 }
