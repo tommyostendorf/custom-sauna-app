@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { ServiceState, Settings } from "@/lib/types";
-import { Card, SectionLabel } from "./ui";
+import { Card, SectionLabel, Toggle } from "./ui";
 
 interface Props {
   settings: Settings | null;
   reloadSettings: () => void;
   service: ServiceState | null;
   reloadService: () => void;
+  hasColdPlunge: boolean;
+  onToggleColdPlunge: (v: boolean) => void;
 }
 
 const FEEDBACK_EMAIL = "sauna@tommyostendorf.com";
@@ -23,7 +25,7 @@ function dueStatus(lastISO: string | null, intervalDays: number): { text: string
   return { text: `due in ${daysLeft}d`, overdue: false };
 }
 
-export function More({ settings, reloadSettings, service, reloadService }: Props) {
+export function More({ settings, reloadSettings, service, reloadService, hasColdPlunge, onToggleColdPlunge }: Props) {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -71,6 +73,18 @@ export function More({ settings, reloadSettings, service, reloadService }: Props
           >
             {saved ? "Saved ✓" : "Save"}
           </button>
+        </div>
+      </Card>
+
+      {/* Features */}
+      <Card>
+        <SectionLabel>Features</SectionLabel>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col">
+            <span className="text-sm text-text">I have a cold plunge</span>
+            <span className="text-xs text-muted">Adds the plunge timer (Control) and plunge stats (Activity).</span>
+          </div>
+          <Toggle label="Cold plunge features" on={hasColdPlunge} onChange={onToggleColdPlunge} />
         </div>
       </Card>
 

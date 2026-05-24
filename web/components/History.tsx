@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { api } from "@/lib/api";
+import { useState } from "react";
 import { Plunge, Session, Visit } from "@/lib/types";
 import { Card, SectionLabel } from "./ui";
 
@@ -9,11 +8,18 @@ interface Props {
   sessions: Session[];
   visits: Visit[];
   plunges: Plunge[];
-  reloadPlunges: () => void;
+  hasColdPlunge: boolean;
 }
 
+type Period = "day" | "week" | "month" | "all";
+const PERIODS: { key: Period; label: string; days: number; heading: string }[] = [
+  { key: "day", label: "Day", days: 1, heading: "Today" },
+  { key: "week", label: "Week", days: 7, heading: "This week" },
+  { key: "month", label: "Month", days: 30, heading: "This month" },
+  { key: "all", label: "All", days: Infinity, heading: "All time" },
+];
+
 const DAY = 86400000;
-const withinDays = (iso: string, days: number) => Date.now() - new Date(iso).getTime() <= days * DAY;
 
 function fmtDur(mins: number): string {
   const h = Math.floor(mins / 60);
@@ -24,89 +30,17 @@ function mmss(totalSec: number): string {
   return `${Math.floor(totalSec / 60)}:${(totalSec % 60).toString().padStart(2, "0")}`;
 }
 function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
-function Stat({ icon, value, label }: { icon: string; value: string | number; label: string }) {
+function Stat({ icon, value, label, sub }: { icon: string; value: string | number; label: string; sub?: string }) {
   return (
     <div className="rounded-2xl bg-surface-2 p-3">
       <div className="text-lg">{icon}</div>
       <div className="mt-1 text-2xl font-semibold tabular-nums leading-none">{value}</div>
+      {sub && <div className="text-xs text-ember-soft">{sub}</div>}
       <div className="mt-1 text-xs text-muted">{label}</div>
     </div>
-  );
-}
-
-/** Inline cold-plunge timer + logger. */
-function PlungeLogger({ reload }: { reload: () => void }) {
-  const [phase, setPhase] = useState<"idle" | "running" | "stopped">("idle");
-  const [elapsed, setElapsed] = useState(0);
-  const [temp, setTemp] = useState("");
-  const startRef = useRef(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const stopTimer = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = null;
-  };
-  useEffect(() => stopTimer, []);
-
-  const start = () => {
-    startRef.current = Date.now();
-    setElapsed(0);
-    setPhase("running");
-    timerRef.current = setInterval(() => setElapsed(Math.floor((Date.now() - startRef.current) / 1000)), 250);
-  };
-  const reset = () => {
-    stopTimer();
-    setPhase("idle");
-    setElapsed(0);
-    setTemp("");
-  };
-  const save = async () => {
-    await api.addPlunge(elapsed, temp ? Number(temp) : undefined);
-    reload();
-    reset();
-  };
-
-  return (
-    <Card>
-      <SectionLabel>Log a cold plunge</SectionLabel>
-      <div className="flex flex-col items-center gap-3">
-        <div className="text-4xl font-semibold tabular-nums">{mmss(elapsed)}</div>
-        {phase === "idle" && (
-          <button type="button" onClick={start} className="w-full rounded-2xl bg-cool/20 py-3 font-medium text-cool">
-            🧊 Start plunge timer
-          </button>
-        )}
-        {phase === "running" && (
-          <button type="button" onClick={() => { stopTimer(); setPhase("stopped"); }} className="w-full rounded-2xl bg-cool py-3 font-medium text-black">
-            Stop
-          </button>
-        )}
-        {phase === "stopped" && (
-          <div className="flex w-full flex-col gap-2">
-            <input
-              type="number"
-              inputMode="numeric"
-              value={temp}
-              onChange={(e) => setTemp(e.target.value)}
-              placeholder="Water temp °F (optional)"
-              className="rounded-2xl border border-border bg-surface-2 px-4 py-3 text-text outline-none focus:border-cool"
-            />
-            <div className="flex gap-2">
-              <button type="button" onClick={save} className="flex-1 rounded-2xl bg-cool py-3 font-medium text-black">Save plunge</button>
-              <button type="button" onClick={reset} className="rounded-2xl border border-border bg-surface-2 px-4 py-3">Cancel</button>
-            </div>
-          </div>
-        )}
-      </div>
-    </Card>
   );
 }
 
@@ -117,55 +51,74 @@ interface Item {
   detail: string;
 }
 
-export function History({ sessions, visits, plunges, reloadPlunges }: Props) {
-  // --- This-week rollups (the "reports" view) ---
-  const wVisits = visits.filter((v) => withinDays(v.inAt, 7) && v.minutes != null);
-  const wSessions = sessions.filter((s) => withinDays(s.startedAt, 7) && s.endedAt);
-  const wPlunges = plunges.filter((p) => withinDays(p.at, 7));
-  const insideMin = wVisits.reduce((a, v) => a + (v.minutes ?? 0), 0);
-  const heaterMin = wSessions.reduce((a, s) => a + (s.durationMinutes ?? 0), 0);
+export function History({ sessions, visits, plunges, hasColdPlunge }: Props) {
+  const [period, setPeriod] = useState<Period>("week");
+  const cfg = PERIODS.find((p) => p.key === period)!;
+  const within = (iso: string) =>
+    cfg.days === Infinity || Date.now() - new Date(iso).getTime() <= cfg.days * DAY;
 
-  // --- Recent merged activity (kept short) ---
+  // --- Rollups for the selected period ---
+  const fVisits = visits.filter((v) => within(v.inAt) && v.minutes != null);
+  const fSessions = sessions.filter((s) => within(s.startedAt) && s.endedAt);
+  const fPlunges = plunges.filter((p) => within(p.at));
+  const insideMin = fVisits.reduce((a, v) => a + (v.minutes ?? 0), 0);
+  const heaterMin = fSessions.reduce((a, s) => a + (s.durationMinutes ?? 0), 0);
+  const plungeSec = fPlunges.reduce((a, p) => a + p.durationSec, 0);
+
+  // --- Recent merged activity for the period ---
   const items: Item[] = [
-    ...visits.map((v) => ({
-      t: v.inAt,
-      icon: "🔥",
-      title: "Sauna session",
-      detail: v.minutes != null ? `${v.minutes} min inside` : "in progress",
-    })),
-    ...plunges.map((p) => ({
-      t: p.at,
-      icon: "🧊",
-      title: "Cold plunge",
-      detail: `${mmss(p.durationSec)}${p.tempF != null ? ` · ${p.tempF}°F` : ""}`,
-    })),
+    ...fVisits.map((v) => ({ t: v.inAt, icon: "🔥", title: "Sauna session", detail: `${v.minutes} min inside` })),
+    ...(hasColdPlunge
+      ? fPlunges.map((p) => ({
+          t: p.at,
+          icon: "🧊",
+          title: "Cold plunge",
+          detail: `${mmss(p.durationSec)}${p.tempF != null ? ` · ${p.tempF}°F` : ""}`,
+        }))
+      : []),
   ].sort((a, b) => +new Date(b.t) - +new Date(a.t));
-  const recent = items.slice(0, 8);
+  const recent = items.slice(0, 30);
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Weekly summary / progress */}
+      {/* Period filter */}
+      <div className="flex rounded-full border border-border bg-surface p-1 text-sm">
+        {PERIODS.map((p) => (
+          <button
+            key={p.key}
+            type="button"
+            onClick={() => setPeriod(p.key)}
+            className={`flex-1 rounded-full py-1.5 transition ${
+              period === p.key ? "bg-ember font-medium text-black" : "text-muted"
+            }`}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Summary / progress */}
       <Card>
-        <SectionLabel>This week</SectionLabel>
+        <SectionLabel>{cfg.heading}</SectionLabel>
         <div className="grid grid-cols-2 gap-3">
           <Stat icon="🔥" value={fmtDur(insideMin)} label="Time inside" />
-          <Stat icon="🧖" value={wVisits.length} label="Sauna sessions" />
+          <Stat icon="🔢" value={fVisits.length} label="Sauna sessions" />
           <Stat icon="♨️" value={fmtDur(heaterMin)} label="Heater runtime" />
-          <Stat icon="🧊" value={wPlunges.length} label="Cold plunges" />
+          {hasColdPlunge && (
+            <Stat icon="🧊" value={fPlunges.length} sub={`${fmtDur(Math.round(plungeSec / 60))} total`} label="Cold plunges" />
+          )}
         </div>
         <p className="mt-3 text-xs text-muted">
           “Time inside” counts your check-ins; “heater runtime” is for energy/billing.
         </p>
       </Card>
 
-      <PlungeLogger reload={reloadPlunges} />
-
-      {/* Recent activity — your sessions & plunges (kept short) */}
+      {/* Recent activity for the period */}
       <Card>
         <SectionLabel>Recent</SectionLabel>
         {recent.length === 0 ? (
           <div className="py-3 text-center text-sm text-muted">
-            Check in when you’re in the sauna and log plunges to see them here.
+            Nothing logged in this range. Check in when you’re in the sauna{hasColdPlunge ? " and log plunges" : ""} to see them here.
           </div>
         ) : (
           <ul className="flex flex-col divide-y divide-border">

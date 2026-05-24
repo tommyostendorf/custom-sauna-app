@@ -8,6 +8,7 @@ import { StatusGauge } from "@/components/StatusGauge";
 import { PowerButton } from "@/components/PowerButton";
 import { Controls } from "@/components/Controls";
 import { CheckInCard } from "@/components/CheckInCard";
+import { PlungeLogger } from "@/components/PlungeLogger";
 import { Music } from "@/components/Music";
 import { History } from "@/components/History";
 import { More } from "@/components/More";
@@ -23,6 +24,13 @@ export default function Home() {
   const [openVisit, setOpenVisit] = useState<Visit | null>(null);
   const [plunges, setPlunges] = useState<Plunge[]>([]);
   const [service, setService] = useState<ServiceState | null>(null);
+  // Cold-plunge features are opt-in (not everyone has one). Saved on this device.
+  const [hasColdPlunge, setHasColdPlunge] = useState(false);
+  useEffect(() => setHasColdPlunge(localStorage.getItem("hasColdPlunge") === "1"), []);
+  const toggleColdPlunge = (v: boolean) => {
+    localStorage.setItem("hasColdPlunge", v ? "1" : "0");
+    setHasColdPlunge(v);
+  };
 
   const reloadSessions = useCallback(() => {
     api.getSessions().then(setSessions).catch(() => {});
@@ -109,11 +117,12 @@ export default function Home() {
         <div className="flex flex-col gap-4">
           <CheckInCard openVisit={openVisit} reload={reloadVisits} />
           <Controls state={state} busy={sauna.busy} connected={connected} run={sauna.run} />
+          {hasColdPlunge && <PlungeLogger reload={reloadPlunges} />}
           <Music />
         </div>
       )}
       {tab === "activity" && (
-        <History sessions={sessions} visits={visits} plunges={plunges} reloadPlunges={reloadPlunges} />
+        <History sessions={sessions} visits={visits} plunges={plunges} hasColdPlunge={hasColdPlunge} />
       )}
       {tab === "more" && (
         <More
@@ -121,6 +130,8 @@ export default function Home() {
           reloadSettings={reloadSettings}
           service={service}
           reloadService={reloadService}
+          hasColdPlunge={hasColdPlunge}
+          onToggleColdPlunge={toggleColdPlunge}
         />
       )}
 
