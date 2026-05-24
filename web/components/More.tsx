@@ -119,26 +119,36 @@ export function More({ settings, reloadSettings, service, reloadService, hasCold
           <p className="text-sm text-danger">
             Blocked. Enable notifications for this app in your phone&apos;s Settings, then reopen.
           </p>
-        ) : (
-          <div className="flex flex-col gap-2">
+        ) : pushStatus === "granted" ? (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-ember-soft">Notifications on ✓</span>
+              <button
+                type="button"
+                onClick={testPush}
+                className="rounded-full border border-border bg-surface-2 px-4 py-2 text-sm"
+              >
+                Send test
+              </button>
+            </div>
             <button
               type="button"
               onClick={enablePush}
               disabled={enabling}
-              className="w-full rounded-2xl bg-ember py-3 font-semibold text-black disabled:opacity-50"
+              className="self-start text-xs text-muted disabled:opacity-50"
             >
-              {enabling ? "Working…" : pushStatus === "granted" ? "Re-register this device" : "Enable notifications"}
+              {enabling ? "Re-registering…" : "Not getting alerts? Re-register this device"}
             </button>
-            {pushStatus === "granted" && (
-              <button
-                type="button"
-                onClick={testPush}
-                className="w-full rounded-2xl border border-border bg-surface-2 py-3 text-sm font-medium"
-              >
-                Send test
-              </button>
-            )}
           </div>
+        ) : (
+          <button
+            type="button"
+            onClick={enablePush}
+            disabled={enabling}
+            className="w-full rounded-2xl bg-ember py-3 font-semibold text-black disabled:opacity-50"
+          >
+            {enabling ? "Working…" : "Enable notifications"}
+          </button>
         )}
         {pushMsg && <p className="mt-2 text-xs text-muted">{pushMsg}</p>}
       </Card>
