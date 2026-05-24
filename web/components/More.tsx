@@ -13,6 +13,7 @@ interface Props {
   reloadService: () => void;
   hasColdPlunge: boolean;
   onToggleColdPlunge: (v: boolean) => void;
+  onReplaySetup: () => void;
 }
 
 const FEEDBACK_EMAIL = "sauna@tommyostendorf.com";
@@ -26,7 +27,7 @@ function dueStatus(lastISO: string | null, intervalDays: number): { text: string
   return { text: `due in ${daysLeft}d`, overdue: false };
 }
 
-export function More({ settings, reloadSettings, service, reloadService, hasColdPlunge, onToggleColdPlunge }: Props) {
+export function More({ settings, reloadSettings, service, reloadService, hasColdPlunge, onToggleColdPlunge, onReplaySetup }: Props) {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -252,6 +253,14 @@ export function More({ settings, reloadSettings, service, reloadService, hasCold
           ✉️ Send feedback
         </a>
       </Card>
+
+      <button
+        type="button"
+        onClick={onReplaySetup}
+        className="text-center text-sm text-muted underline-offset-2 hover:underline"
+      >
+        Replay the setup guide
+      </button>
 
       <p className="pb-2 text-center text-xs text-muted">
         Independent app · works with Clearlight® saunas · not affiliated with Clearlight
