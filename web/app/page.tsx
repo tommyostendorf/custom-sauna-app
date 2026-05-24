@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useSauna } from "@/lib/useSauna";
 import { Plunge, Preset, Session, ServiceState, Settings, Visit } from "@/lib/types";
+import { launchMusicOff } from "@/lib/music";
 import { StatusGauge } from "@/components/StatusGauge";
+import { PowerButton } from "@/components/PowerButton";
 import { Controls } from "@/components/Controls";
 import { CheckInCard } from "@/components/CheckInCard";
 import { Presets } from "@/components/Presets";
@@ -59,6 +61,14 @@ export default function Home() {
 
   const state = sauna.status?.state ?? null;
   const connected = sauna.status?.connected ?? false;
+  const power = state?.power ?? false;
+
+  const togglePower = () =>
+    sauna.run(async () => {
+      const next = !power;
+      await api.setPower(next);
+      if (!next && settings?.stopMusicOnOff) launchMusicOff();
+    });
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top))]">
@@ -66,8 +76,12 @@ export default function Home() {
       <header className="flex items-center justify-between py-3">
         <h1 className="text-xl font-semibold tracking-tight">{settings?.saunaName || "Sauna"}</h1>
         <div className="flex items-center gap-2 text-xs text-muted">
-          <span className={`h-2.5 w-2.5 rounded-full ${connected ? "bg-ember" : "bg-danger"}`} />
-          {connected ? "Connected" : "Offline"}
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${
+              !sauna.bridgeReachable ? "bg-danger" : connected ? "bg-ember" : "bg-amber-400"
+            }`}
+          />
+          {!sauna.bridgeReachable ? "No bridge" : connected ? "Connected" : "Sauna asleep"}
         </div>
       </header>
 
@@ -75,9 +89,15 @@ export default function Home() {
       <StatusGauge
         state={state}
         connected={connected}
+        bridgeReachable={sauna.bridgeReachable}
         etaMinutes={sauna.readyEtaMinutes}
         remainingMinutes={sauna.remainingMinutes}
       />
+
+      {/* Persistent power button — always visible, above the tabs */}
+      <div className="mt-4">
+        <PowerButton power={power} disabled={sauna.busy || !connected} onToggle={togglePower} />
+      </div>
 
       {/* Tabs */}
       <nav className="my-4 flex rounded-full border border-border bg-surface p-1 text-sm">

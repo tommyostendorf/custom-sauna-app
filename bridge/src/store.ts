@@ -28,6 +28,7 @@ export interface Session {
 
 export interface Settings {
   saunaName: string;
+  stopMusicOnOff: boolean;
 }
 
 /** A real visit — when the person actually got in and out (separate from heater on/off). */
@@ -72,7 +73,7 @@ const DEFAULTS: Data = {
     { id: 'p3', name: 'Warm Up in 30', emoji: '⏰', temperatureF: 160, timerMinutes: 40, delayedStartMinutes: 30, internalLight: true, externalLight: false },
   ],
   sessions: [],
-  settings: { saunaName: 'My Sauna' },
+  settings: { saunaName: 'My Sauna', stopMusicOnOff: false },
   visits: [],
   plunges: [],
   service: { lastCleanedAt: null, cleanIntervalDays: 7, lastServicedAt: null, serviceIntervalDays: 180 },

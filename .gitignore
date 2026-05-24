@@ -21,3 +21,6 @@ npm-debug.log*
 # OS / editor
 .DS_Store
 .vscode/
+
+# Vercel
+.vercel/

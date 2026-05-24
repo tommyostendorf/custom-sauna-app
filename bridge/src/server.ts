@@ -11,6 +11,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { ClearlightDevice } from './gizwits/device';
 import { SaunaState } from './gizwits/protocol';
+import { findSaunaIp } from './findSauna';
 import {
   getPresets, savePreset, deletePreset,
   getSessions, startSession, endSession, updateOpenSessionMaxTemp,
@@ -56,6 +57,34 @@ connectWithRetry();
 device.on('authenticated', () => console.log('[sauna] connected and authenticated'));
 device.on('disconnected', () => console.log('[sauna] disconnected'));
 device.on('error', (e: Error) => console.warn('[sauna] error:', e.message));
+
+// Self-healing: if we can't reach the sauna for a couple of attempts, scan the LAN
+// for its control port and update the host (handles DHCP moving the sauna's IP).
+let failureCount = 0;
+let scanning = false;
+async function rescanForSauna() {
+  if (scanning) return;
+  scanning = true;
+  try {
+    const ip = await findSaunaIp();
+    if (ip && ip !== device.currentHost) {
+      console.log(`[sauna] relocated: ${device.currentHost} -> ${ip}`);
+      device.setHost(ip);
+    }
+  } catch (e) {
+    console.warn('[sauna] rescan failed:', (e as Error).message);
+  } finally {
+    scanning = false;
+  }
+}
+device.on('authenticated', () => { failureCount = 0; });
+device.on('disconnected', () => {
+  failureCount += 1;
+  if (failureCount >= 2) {
+    failureCount = 0;
+    void rescanForSauna();
+  }
+});
 
 // Auto-log sessions by watching power transitions in the state stream.
 device.on('state', (state: SaunaState, prev: SaunaState | null) => {
@@ -206,6 +235,7 @@ app.put('/api/settings', (req, res) => {
   const patch = req.body ?? {};
   const next: Record<string, unknown> = {};
   if (typeof patch.saunaName === 'string') next.saunaName = patch.saunaName.slice(0, 40);
+  if (typeof patch.stopMusicOnOff === 'boolean') next.stopMusicOnOff = patch.stopMusicOnOff;
   res.json({ ok: true, settings: saveSettings(next) });
 });
 

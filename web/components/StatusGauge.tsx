@@ -3,13 +3,14 @@ import { SaunaState } from "@/lib/types";
 interface Props {
   state: SaunaState | null;
   connected: boolean;
+  bridgeReachable: boolean;
   etaMinutes: number | null;
   remainingMinutes: number | null;
 }
 
 const BASELINE_F = 70; // assume ~room temp as the start of the heat-up range
 
-export function StatusGauge({ state, connected, etaMinutes, remainingMinutes }: Props) {
+export function StatusGauge({ state, connected, bridgeReachable, etaMinutes, remainingMinutes }: Props) {
   const cur = state?.currentTemp.f ?? 0;
   const target = state?.targetTemp.f ?? 0;
   const power = state?.power ?? false;
@@ -26,7 +27,8 @@ export function StatusGauge({ state, connected, etaMinutes, remainingMinutes }: 
   const atTarget = power && cur >= target - 1;
 
   let caption = "Off";
-  if (!connected) caption = "Sauna offline";
+  if (!bridgeReachable) caption = "Can't reach bridge";
+  else if (!connected) caption = "Sauna asleep — power it on";
   else if (!power) caption = "Ready to start";
   else if (atTarget) caption = "At temperature";
   else if (etaMinutes) caption = `Ready in ~${etaMinutes} min`;
@@ -67,7 +69,7 @@ export function StatusGauge({ state, connected, etaMinutes, remainingMinutes }: 
         </div>
         <div
           className={`mt-3 text-sm font-medium ${
-            atTarget ? "text-ember-soft" : connected ? "text-muted" : "text-danger"
+            !bridgeReachable ? "text-danger" : atTarget ? "text-ember-soft" : "text-muted"
           }`}
         >
           {caption}

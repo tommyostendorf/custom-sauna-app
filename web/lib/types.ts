@@ -36,6 +36,7 @@ export interface Session {
 
 export interface Settings {
   saunaName: string;
+  stopMusicOnOff: boolean;
 }
 
 export interface Visit {

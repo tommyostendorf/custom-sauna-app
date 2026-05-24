@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { ServiceState, Settings } from "@/lib/types";
-import { Card, SectionLabel } from "./ui";
+import { Card, SectionLabel, Toggle } from "./ui";
 
 interface Props {
   settings: Settings | null;
@@ -30,6 +30,7 @@ export function More({ settings, reloadSettings, service, reloadService }: Props
 
   const markCleaned = async () => { await api.markCleaned(); reloadService(); };
   const markServiced = async () => { await api.markServiced(); reloadService(); };
+  const setStopMusic = async (v: boolean) => { await api.saveSettings({ stopMusicOnOff: v }); reloadSettings(); };
 
   useEffect(() => {
     if (settings) setName(settings.saunaName);
@@ -71,6 +72,22 @@ export function More({ settings, reloadSettings, service, reloadService }: Props
           >
             {saved ? "Saved ✓" : "Save"}
           </button>
+        </div>
+      </Card>
+
+      {/* Music */}
+      <Card>
+        <SectionLabel>Music</SectionLabel>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col">
+            <span className="text-sm text-text">Stop music when sauna turns off</span>
+            <span className="text-xs text-muted">Requires a shortcut named “Sauna Music Off”.</span>
+          </div>
+          <Toggle
+            label="Stop music on power off"
+            on={settings?.stopMusicOnOff ?? false}
+            onChange={setStopMusic}
+          />
         </div>
       </Card>
 

@@ -74,6 +74,15 @@ export class ClearlightDevice extends EventEmitter {
     return this.connected && this.authenticated;
   }
 
+  get currentHost(): string {
+    return this.host;
+  }
+
+  /** Update the sauna's IP (used when DHCP moves it; takes effect on the next reconnect). */
+  setHost(host: string): void {
+    this.host = host;
+  }
+
   // --- Lifecycle ---
 
   async connect(): Promise<void> {

@@ -14,6 +14,8 @@ export interface SaunaView {
   loading: boolean;
   error: string | null;
   busy: boolean;
+  /** True if the last status fetch reached the bridge (distinguishes "no bridge" from "sauna asleep"). */
+  bridgeReachable: boolean;
   /** Estimated minutes until target temp is reached, or null if not heating/unknown. */
   readyEtaMinutes: number | null;
   /** Minutes elapsed since power turned on (local estimate). */
@@ -33,6 +35,7 @@ export function useSauna(): SaunaView {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [bridgeReachable, setBridgeReachable] = useState(false);
 
   const samples = useRef<TempSample[]>([]);
   const session = useRef<{ startMs: number; timerMin: number } | null>(null);
@@ -43,6 +46,7 @@ export function useSauna(): SaunaView {
       const s = await api.getStatus();
       setStatus(s);
       setError(null);
+      setBridgeReachable(true);
 
       const st = s.state;
       if (st) {
@@ -66,6 +70,7 @@ export function useSauna(): SaunaView {
       }
     } catch (e) {
       setError((e as Error).message);
+      setBridgeReachable(false);
     } finally {
       setLoading(false);
     }
@@ -119,6 +124,7 @@ export function useSauna(): SaunaView {
     loading,
     error,
     busy,
+    bridgeReachable,
     readyEtaMinutes,
     elapsedMinutes,
     remainingMinutes,
