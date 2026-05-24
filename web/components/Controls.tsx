@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { SaunaState } from "@/lib/types";
 import { Card, Chip, RoundButton, SectionLabel, Toggle } from "./ui";
@@ -13,7 +13,7 @@ interface Props {
 }
 
 const TIMER_OPTIONS = [15, 30, 45, 60];
-const DELAY_OPTIONS = [15, 30, 60];
+const DELAY_OPTIONS = [15, 30, 45, 60];
 const TEMP_MIN = 100;
 const TEMP_MAX = 180;
 
@@ -30,33 +30,56 @@ export function Controls({ state, busy, connected, run }: Props) {
   const [tempDraft, setTempDraft] = useState<number | null>(null);
   const shownTemp = tempDraft ?? target;
 
-  // "Ready by" scheduling
+  // "Ready by" scheduling — live preview that updates as you change the time.
   const [readyBy, setReadyBy] = useState("");
-  const [planMsg, setPlanMsg] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const fmtTime = (d: Date) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
-  const scheduleReadyBy = async () => {
-    if (!readyBy || !state) return;
-    const [h, m] = readyBy.split(":").map(Number);
+  const computeTarget = (value: string) => {
+    const [h, m] = value.split(":").map(Number);
     const now = new Date();
-    const targetTime = new Date(now);
-    targetTime.setHours(h, m, 0, 0);
-    if (targetTime.getTime() <= now.getTime()) targetTime.setDate(targetTime.getDate() + 1);
-    const minutesUntilReady = Math.round((targetTime.getTime() - now.getTime()) / 60000);
-    try {
-      const est = await api.getEstimate(state.currentTemp.f, state.targetTemp.f);
-      const delay = minutesUntilReady - est.minutes;
-      if (delay <= 0) {
-        setPlanMsg(`Needs ~${est.minutes} min to heat — sooner than your time, so starting now.`);
-        run(() => api.setPower(true));
-      } else {
-        const startAt = new Date(now.getTime() + delay * 60000);
-        setPlanMsg(`Starts ${fmtTime(startAt)} so it's ready by ${fmtTime(targetTime)} (~${est.minutes} min to heat).`);
-        run(() => api.setDelayedStart(delay));
-      }
-    } catch {
-      setPlanMsg("Couldn't estimate heat-up time — try a manual delay below.");
+    const t = new Date(now);
+    t.setHours(h, m, 0, 0);
+    if (t.getTime() <= now.getTime()) t.setDate(t.getDate() + 1);
+    return { target: t, minutesUntil: Math.round((t.getTime() - now.getTime()) / 60000) };
+  };
+
+  // Recompute the "starts at…" preview whenever the time or temperatures change.
+  useEffect(() => {
+    let cancelled = false;
+    if (!readyBy || !state || power) {
+      setPreview(null);
+      return;
     }
+    const { target, minutesUntil } = computeTarget(readyBy);
+    api
+      .getEstimate(state.currentTemp.f, state.targetTemp.f)
+      .then((est) => {
+        if (cancelled) return;
+        const delay = minutesUntil - est.minutes;
+        if (delay <= 0) {
+          setPreview(`Needs ~${est.minutes} min to heat — that's past ${fmtTime(target)}, so it'll start now.`);
+        } else {
+          const startAt = new Date(Date.now() + delay * 60000);
+          setPreview(`Starts ${fmtTime(startAt)} so it's ready by ${fmtTime(target)} (~${est.minutes} min to heat).`);
+        }
+      })
+      .catch(() => !cancelled && setPreview(null));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readyBy, state?.currentTemp.f, state?.targetTemp.f, power]);
+
+  const scheduleReadyBy = () => {
+    if (!readyBy || !state) return;
+    const { minutesUntil } = computeTarget(readyBy);
+    run(async () => {
+      const est = await api.getEstimate(state.currentTemp.f, state.targetTemp.f);
+      const delay = minutesUntil - est.minutes;
+      if (delay <= 0) await api.setPower(true);
+      else await api.setDelayedStart(delay);
+    });
   };
 
   const setTemp = (value: number) => run(() => api.setTemperature(clampTemp(snap5(value))));
@@ -164,7 +187,7 @@ export function Controls({ state, busy, connected, run }: Props) {
                   Schedule
                 </button>
               </div>
-              {planMsg && <p className="mt-2 text-sm text-ember-soft">{planMsg}</p>}
+              {preview && <p className="mt-2 text-sm text-ember-soft">{preview}</p>}
             </div>
             <div>
               <div className="mb-2 text-xs uppercase tracking-wider text-muted">or start in</div>

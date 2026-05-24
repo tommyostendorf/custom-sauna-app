@@ -3,23 +3,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { useSauna } from "@/lib/useSauna";
-import { Plunge, Preset, Session, ServiceState, Settings, Visit } from "@/lib/types";
-import { launchMusicOff } from "@/lib/music";
+import { Plunge, Session, ServiceState, Settings, Visit } from "@/lib/types";
 import { StatusGauge } from "@/components/StatusGauge";
 import { PowerButton } from "@/components/PowerButton";
 import { Controls } from "@/components/Controls";
 import { CheckInCard } from "@/components/CheckInCard";
 import { Music } from "@/components/Music";
-import { Presets } from "@/components/Presets";
 import { History } from "@/components/History";
 import { More } from "@/components/More";
 
-type Tab = "control" | "presets" | "history" | "more";
+type Tab = "control" | "activity" | "more";
 
 export default function Home() {
   const sauna = useSauna();
   const [tab, setTab] = useState<Tab>("control");
-  const [presets, setPresets] = useState<Preset[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [visits, setVisits] = useState<Visit[]>([]);
@@ -27,9 +24,6 @@ export default function Home() {
   const [plunges, setPlunges] = useState<Plunge[]>([]);
   const [service, setService] = useState<ServiceState | null>(null);
 
-  const reloadPresets = useCallback(() => {
-    api.getPresets().then(setPresets).catch(() => {});
-  }, []);
   const reloadSessions = useCallback(() => {
     api.getSessions().then(setSessions).catch(() => {});
   }, []);
@@ -47,7 +41,6 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    reloadPresets();
     reloadSessions();
     reloadSettings();
     reloadVisits();
@@ -58,18 +51,13 @@ export default function Home() {
       reloadVisits();
     }, 15000);
     return () => clearInterval(id);
-  }, [reloadPresets, reloadSessions, reloadSettings, reloadVisits, reloadPlunges, reloadService]);
+  }, [reloadSessions, reloadSettings, reloadVisits, reloadPlunges, reloadService]);
 
   const state = sauna.status?.state ?? null;
   const connected = sauna.status?.connected ?? false;
   const power = state?.power ?? false;
 
-  const togglePower = () =>
-    sauna.run(async () => {
-      const next = !power;
-      await api.setPower(next);
-      if (!next && settings?.stopMusicOnOff) launchMusicOff();
-    });
+  const togglePower = () => sauna.run(() => api.setPower(!power));
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top))]">
@@ -102,7 +90,7 @@ export default function Home() {
 
       {/* Tabs */}
       <nav className="my-4 flex rounded-full border border-border bg-surface p-1 text-sm">
-        {(["control", "presets", "history", "more"] as Tab[]).map((t) => (
+        {(["control", "activity", "more"] as Tab[]).map((t) => (
           <button
             key={t}
             type="button"
@@ -124,17 +112,7 @@ export default function Home() {
           <Music />
         </div>
       )}
-      {tab === "presets" && (
-        <Presets
-          presets={presets}
-          state={state}
-          busy={sauna.busy}
-          connected={connected}
-          run={sauna.run}
-          reloadPresets={reloadPresets}
-        />
-      )}
-      {tab === "history" && (
+      {tab === "activity" && (
         <History sessions={sessions} visits={visits} plunges={plunges} reloadPlunges={reloadPlunges} />
       )}
       {tab === "more" && (

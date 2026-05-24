@@ -45,7 +45,7 @@ export function CheckInCard({ openVisit, reload }: Props) {
           : "border border-border bg-surface text-text"
       }`}
     >
-      {openVisit ? `🧖 You're in · ${minutesInside} min — tap to check out` : "🧖 Check in (I'm in the sauna)"}
+      {openVisit ? `🔥 You're in · ${minutesInside} min — tap to check out` : "🔥 Check in (I'm in the sauna)"}
     </button>
   );
 }
