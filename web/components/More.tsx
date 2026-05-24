@@ -111,30 +111,34 @@ export function More({ settings, reloadSettings, service, reloadService, hasCold
         <p className="mb-3 text-sm text-muted">
           Get alerted when the sauna reaches temperature and after you&apos;ve been in 30 minutes.
         </p>
-        {pushStatus === "granted" ? (
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-sm text-ember-soft">On ✓</span>
-            <button type="button" onClick={testPush} className="rounded-full border border-border bg-surface-2 px-4 py-2 text-sm">
-              Send test
-            </button>
-          </div>
+        {pushStatus === "unsupported" ? (
+          <p className="text-sm text-muted">
+            On iPhone, add this app to your Home Screen and open it from there to enable notifications.
+          </p>
         ) : pushStatus === "denied" ? (
           <p className="text-sm text-danger">
             Blocked. Enable notifications for this app in your phone&apos;s Settings, then reopen.
           </p>
-        ) : pushStatus === "unsupported" ? (
-          <p className="text-sm text-muted">
-            On iPhone, add this app to your Home Screen first, then open it from there to enable notifications.
-          </p>
         ) : (
-          <button
-            type="button"
-            onClick={enablePush}
-            disabled={enabling}
-            className="w-full rounded-2xl bg-ember py-3 font-semibold text-black disabled:opacity-50"
-          >
-            {enabling ? "Enabling…" : "Enable notifications"}
-          </button>
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={enablePush}
+              disabled={enabling}
+              className="w-full rounded-2xl bg-ember py-3 font-semibold text-black disabled:opacity-50"
+            >
+              {enabling ? "Working…" : pushStatus === "granted" ? "Re-register this device" : "Enable notifications"}
+            </button>
+            {pushStatus === "granted" && (
+              <button
+                type="button"
+                onClick={testPush}
+                className="w-full rounded-2xl border border-border bg-surface-2 py-3 text-sm font-medium"
+              >
+                Send test
+              </button>
+            )}
+          </div>
         )}
         {pushMsg && <p className="mt-2 text-xs text-muted">{pushMsg}</p>}
       </Card>
