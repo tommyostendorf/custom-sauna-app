@@ -13,6 +13,7 @@ import { ClearlightDevice } from './gizwits/device';
 import { SaunaState } from './gizwits/protocol';
 import { findSaunaIp } from './findSauna';
 import { isSpotifyConnected, pausePlayback } from './spotify';
+import { ensureVapid, getVapidPublic, saveSubscription, sendToAll } from './push';
 import {
   getPresets, savePreset, deletePreset,
   getSessions, startSession, endSession, updateOpenSessionMaxTemp,
@@ -39,6 +40,9 @@ if (!SAUNA_HOST) {
 const cToF = (c: number) => (c * 9) / 5 + 32;
 const fToC = (f: number) => ((f - 32) * 5) / 9;
 const round1 = (n: number) => Math.round(n * 10) / 10;
+
+// Ensure Web Push keys exist (auto-generated + stored on first run).
+ensureVapid();
 
 // --- The single sauna connection ---
 const device = new ClearlightDevice({
@@ -89,12 +93,32 @@ device.on('disconnected', () => {
   }
 });
 
+// Session reminder: ~30 min after check-in, nudge once per visit.
+let remindedVisitId: string | null = null;
+setInterval(() => {
+  const open = getOpenVisit();
+  if (!open) {
+    remindedVisitId = null;
+    return;
+  }
+  const minutes = (Date.now() - new Date(open.inAt).getTime()) / 60000;
+  if (minutes >= 30 && remindedVisitId !== open.id) {
+    remindedVisitId = open.id;
+    void sendToAll("You've been in 30 minutes ⏱️", 'Hydrate and listen to your body.');
+  }
+}, 30000);
+
 // Track the start of a heat-up so we can learn the sauna's °F/min rate.
 let heatStart: { ms: number; temp: number } | null = null;
 
 // Auto-log sessions by watching power transitions in the state stream.
 device.on('state', (state: SaunaState, prev: SaunaState | null) => {
   if (state.power) updateOpenSessionMaxTemp(state.currentTemp);
+
+  // --- Notify when the sauna reaches target temperature (once per crossing) ---
+  if (state.power && prev && prev.currentTemp < state.setTemp && state.currentTemp >= state.setTemp) {
+    void sendToAll('Sauna ready 🔥', `Your sauna has reached ${state.setTemp}°F.`);
+  }
 
   // --- Heat-up rate learning ---
   if (prev && !prev.power && state.power) heatStart = { ms: Date.now(), temp: state.currentTemp };
@@ -310,6 +334,21 @@ app.post('/api/spotify/connect', (req, res) => {
 });
 app.post('/api/spotify/disconnect', (_req, res) => {
   clearSpotify();
+  res.json({ ok: true });
+});
+
+// --- Push notifications ---
+app.get('/api/push/vapid', (_req, res) => res.json({ publicKey: getVapidPublic() }));
+app.post('/api/push/subscribe', (req, res) => {
+  const sub = req.body?.subscription ?? req.body;
+  if (!sub || typeof (sub as { endpoint?: string }).endpoint !== 'string') {
+    return res.status(400).json({ error: 'Missing push subscription' });
+  }
+  saveSubscription(sub);
+  res.json({ ok: true });
+});
+app.post('/api/push/test', (_req, res) => {
+  void sendToAll('Test notification ✅', 'Your sauna notifications are working.');
   res.json({ ok: true });
 });
 

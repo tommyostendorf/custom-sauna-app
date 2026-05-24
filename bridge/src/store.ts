@@ -59,6 +59,13 @@ export interface SpotifyAuth {
   clientId: string | null;
 }
 
+export interface PushState {
+  vapidPublic: string | null;
+  vapidPrivate: string | null;
+  // Web Push subscription objects (endpoint + keys), as provided by the browser.
+  subscriptions: unknown[];
+}
+
 interface Data {
   presets: Preset[];
   sessions: Session[];
@@ -69,6 +76,7 @@ interface Data {
   spotify: SpotifyAuth;
   /** Learned heat-up rates in °F per minute (most recent last). */
   heatRate: { samples: number[] };
+  push: PushState;
 }
 
 /** Fallback heat-up rate (°F/min) before the sauna has learned its own. */
@@ -90,6 +98,7 @@ const DEFAULTS: Data = {
   service: { lastCleanedAt: null, cleanIntervalDays: 7, lastServicedAt: null, serviceIntervalDays: 180 },
   spotify: { refreshToken: null, clientId: null },
   heatRate: { samples: [] },
+  push: { vapidPublic: null, vapidPrivate: null, subscriptions: [] },
 };
 
 let data: Data = DEFAULTS;
@@ -265,5 +274,31 @@ export function getHeatRate(): { ratePerMin: number; samples: number } {
 export function addHeatSample(ratePerMin: number): void {
   data.heatRate.samples.push(ratePerMin);
   if (data.heatRate.samples.length > 10) data.heatRate.samples.shift();
+  save();
+}
+
+// --- Push notifications ---
+export const getPush = (): PushState => data.push;
+
+export function setVapid(vapidPublic: string, vapidPrivate: string): void {
+  data.push.vapidPublic = vapidPublic;
+  data.push.vapidPrivate = vapidPrivate;
+  save();
+}
+
+export function addSubscription(sub: unknown): void {
+  const endpoint = (sub as { endpoint?: string })?.endpoint;
+  // de-dupe by endpoint
+  data.push.subscriptions = data.push.subscriptions.filter(
+    (s) => (s as { endpoint?: string })?.endpoint !== endpoint,
+  );
+  data.push.subscriptions.push(sub);
+  save();
+}
+
+export function removeSubscription(endpoint: string): void {
+  data.push.subscriptions = data.push.subscriptions.filter(
+    (s) => (s as { endpoint?: string })?.endpoint !== endpoint,
+  );
   save();
 }

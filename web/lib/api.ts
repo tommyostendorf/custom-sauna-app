@@ -86,6 +86,10 @@ export const api = {
     post("/api/spotify/connect", { refreshToken, clientId }),
   spotifyStatus: () => req<{ connected: boolean }>("/api/spotify/status"),
   spotifyDisconnect: () => post("/api/spotify/disconnect", {}),
+
+  getVapidPublic: () => req<{ publicKey: string | null }>("/api/push/vapid"),
+  pushSubscribe: (subscription: unknown) => post("/api/push/subscribe", { subscription }),
+  pushTest: () => post("/api/push/test", {}),
 };
 
 /**

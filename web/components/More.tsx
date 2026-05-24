@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { ServiceState, Settings } from "@/lib/types";
+import { enableNotifications, notificationStatus, type PushStatus } from "@/lib/push";
 import { Card, SectionLabel, Toggle } from "./ui";
 
 interface Props {
@@ -32,6 +33,28 @@ export function More({ settings, reloadSettings, service, reloadService, hasCold
 
   const markCleaned = async () => { await api.markCleaned(); reloadService(); };
   const markServiced = async () => { await api.markServiced(); reloadService(); };
+
+  // Notifications
+  const [pushStatus, setPushStatus] = useState<PushStatus>("default");
+  const [pushMsg, setPushMsg] = useState<string | null>(null);
+  const [enabling, setEnabling] = useState(false);
+  useEffect(() => setPushStatus(notificationStatus()), []);
+
+  const enablePush = async () => {
+    setEnabling(true);
+    setPushMsg(null);
+    try {
+      const res = await enableNotifications();
+      setPushStatus(notificationStatus());
+      setPushMsg(res.ok ? "Notifications on — you'll be alerted when it's ready." : res.reason ?? "Couldn't enable.");
+    } finally {
+      setEnabling(false);
+    }
+  };
+  const testPush = async () => {
+    await api.pushTest().catch(() => {});
+    setPushMsg("Test sent — check your notifications.");
+  };
 
   useEffect(() => {
     if (settings) setName(settings.saunaName);
@@ -74,6 +97,40 @@ export function More({ settings, reloadSettings, service, reloadService, hasCold
             {saved ? "Saved ✓" : "Save"}
           </button>
         </div>
+      </Card>
+
+      {/* Notifications */}
+      <Card>
+        <SectionLabel>Notifications</SectionLabel>
+        <p className="mb-3 text-sm text-muted">
+          Get alerted when the sauna reaches temperature and after you&apos;ve been in 30 minutes.
+        </p>
+        {pushStatus === "granted" ? (
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm text-ember-soft">On ✓</span>
+            <button type="button" onClick={testPush} className="rounded-full border border-border bg-surface-2 px-4 py-2 text-sm">
+              Send test
+            </button>
+          </div>
+        ) : pushStatus === "denied" ? (
+          <p className="text-sm text-danger">
+            Blocked. Enable notifications for this app in your phone&apos;s Settings, then reopen.
+          </p>
+        ) : pushStatus === "unsupported" ? (
+          <p className="text-sm text-muted">
+            On iPhone, add this app to your Home Screen first, then open it from there to enable notifications.
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={enablePush}
+            disabled={enabling}
+            className="w-full rounded-2xl bg-ember py-3 font-semibold text-black disabled:opacity-50"
+          >
+            {enabling ? "Enabling…" : "Enable notifications"}
+          </button>
+        )}
+        {pushMsg && <p className="mt-2 text-xs text-muted">{pushMsg}</p>}
       </Card>
 
       {/* Features */}
