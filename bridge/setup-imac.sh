@@ -15,16 +15,19 @@ DIR="$HOME/Projects/custom-sauna-app"
 PORT=8787
 echo "=== Insaunity sauna bridge — Mac setup (no admin required) ==="
 
-# --- Node: use any existing install, else install via nvm (user-space, no password) ---
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-for p in /opt/homebrew/bin /usr/local/bin; do [ -x "$p/node" ] && export PATH="$p:$PATH"; done
+# --- Node: use any existing install, else download official prebuilt binary ---
+# (user-space, no admin, no git, no Xcode tools — the bridge has no native deps)
+NODE_HOME="$HOME/.local/node"
+for p in "$NODE_HOME/bin" /opt/homebrew/bin /usr/local/bin; do [ -x "$p/node" ] && export PATH="$p:$PATH"; done
 
 if ! command -v node >/dev/null 2>&1; then
-  echo ">> Installing Node in your user space (no password needed)…"
-  curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-  export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"
-  nvm install --lts
+  echo ">> Downloading Node (prebuilt, user-space, no password)…"
+  NODE_VERSION="v22.12.0"
+  case "$(uname -m)" in arm64) NARCH=arm64;; *) NARCH=x64;; esac
+  mkdir -p "$NODE_HOME"
+  curl -fsSL "https://nodejs.org/dist/$NODE_VERSION/node-$NODE_VERSION-darwin-$NARCH.tar.gz" \
+    | tar xz -C "$NODE_HOME" --strip-components=1
+  export PATH="$NODE_HOME/bin:$PATH"
 fi
 echo ">> Node $(node -v), npm $(npm -v)"
 
