@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { api } from "@/lib/api";
+import { SocketSpike } from "./SocketSpike";
 import { ServiceState, Settings } from "@/lib/types";
 import { enableNotifications, notificationStatus, type PushStatus } from "@/lib/push";
 import { Card, SectionLabel, Toggle } from "./ui";
@@ -31,6 +33,7 @@ export function More({ settings, reloadSettings, service, reloadService, hasCold
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showSpike, setShowSpike] = useState(false);
 
   const markCleaned = async () => { await api.markCleaned(); reloadService(); };
   const markServiced = async () => { await api.markServiced(); reloadService(); };
@@ -276,6 +279,20 @@ export function More({ settings, reloadSettings, service, reloadService, hasCold
       >
         Replay the setup guide
       </button>
+
+      {/* Phase 1 diagnostic — native only, temporary. Remove once the socket spike is validated. */}
+      {Capacitor.isNativePlatform() && (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setShowSpike((v) => !v)}
+            className="text-center text-xs text-muted underline-offset-2 hover:underline"
+          >
+            {showSpike ? "Hide socket test" : "Socket test (dev)"}
+          </button>
+          {showSpike && <SocketSpike />}
+        </div>
+      )}
 
       <p className="px-2 pb-2 text-center text-xs text-muted">
         Insaunity · independent, works with Clearlight® saunas · not affiliated with Clearlight.

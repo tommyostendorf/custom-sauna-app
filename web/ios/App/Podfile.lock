@@ -1,0 +1,35 @@
+PODS:
+  - Capacitor (7.6.5):
+    - CapacitorCordova
+  - CapacitorCordova (7.6.5)
+  - CapacitorTcpSocket (7.1.0):
+    - Capacitor
+    - SwiftSocket
+  - SwiftSocket (2.0.2)
+
+DEPENDENCIES:
+  - "Capacitor (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - CapacitorTcpSocket (from `../../node_modules/capacitor-tcp-socket`)
+
+SPEC REPOS:
+  trunk:
+    - SwiftSocket
+
+EXTERNAL SOURCES:
+  Capacitor:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorCordova:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorTcpSocket:
+    :path: "../../node_modules/capacitor-tcp-socket"
+
+SPEC CHECKSUMS:
+  Capacitor: e9708b186e71dc45f9b2ee72e826b7389fb79ff2
+  CapacitorCordova: 2b36392a7292c3c451dcae154185ee8804d7b6b3
+  CapacitorTcpSocket: b1bd03b64009cb2c6221cd660ea080f2f835e220
+  SwiftSocket: 6f4c9c63fbc5c1d61188936bb3c599fd546f40ae
+
+PODFILE CHECKSUM: 72afe298fa489f622587b971c6907ad04b503cea
+
+COCOAPODS: 1.16.2

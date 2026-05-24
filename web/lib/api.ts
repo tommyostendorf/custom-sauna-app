@@ -1,102 +1,17 @@
 /**
- * Client for the sauna bridge HTTP API.
+ * Public sauna API used by every UI component.
  *
- * The bridge URL comes from NEXT_PUBLIC_BRIDGE_URL. In local dev it defaults to
- * the bridge on the same machine. In production it points at the Tailscale HTTPS
- * URL (set in Vercel env). An optional token is sent as a Bearer header.
+ * This is now a thin facade over a swappable backend (see lib/transport/). The
+ * exported `api` object and `applyPreset` keep the exact same shape they always had,
+ * so no component needs to change. getBackend() decides whether calls go to the Node
+ * bridge over HTTP (Mode A) or run natively on the device (Mode B, later phases).
  */
 
-import { Plunge, Preset, SaunaStatus, Session, ServiceState, Settings, Visit } from "./types";
+import { Preset } from "./types";
+import { getBackend } from "./transport";
+import { SaunaBackend } from "./transport/types";
 
-// Default to same-origin (relative) so a bridge device that serves this app "just works"
-// with no config. Override with NEXT_PUBLIC_BRIDGE_URL for a split host+remote setup
-// (e.g. app on Vercel, bridge reached via a Tailscale HTTPS URL).
-const BASE = process.env.NEXT_PUBLIC_BRIDGE_URL?.replace(/\/$/, "") ?? "";
-const TOKEN = process.env.NEXT_PUBLIC_BRIDGE_TOKEN;
-
-async function req<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(BASE + path, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}),
-      ...(options.headers || {}),
-    },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const body = await res.json();
-      if (body?.error) msg = body.error;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(msg);
-  }
-  return res.json() as Promise<T>;
-}
-
-const post = (path: string, body: unknown) =>
-  req(path, { method: "POST", body: JSON.stringify(body) });
-
-export const api = {
-  getStatus: () => req<SaunaStatus>("/api/status"),
-  setPower: (on: boolean) => post("/api/power", { on }),
-  setTemperature: (value: number, unit: "F" | "C" = "F") =>
-    post("/api/temperature", { value, unit }),
-  setTimer: (minutes: number) => post("/api/timer", { minutes }),
-  setDelayedStart: (minutes: number) => post("/api/delayed-start", { minutes }),
-  setLight: (which: "internal" | "external", on: boolean) =>
-    post("/api/lights", { which, on }),
-
-  getPresets: () => req<{ presets: Preset[] }>("/api/presets").then((r) => r.presets),
-  savePreset: (p: Partial<Preset>) =>
-    req<{ preset: Preset }>("/api/presets", {
-      method: "POST",
-      body: JSON.stringify(p),
-    }).then((r) => r.preset),
-  deletePreset: (id: string) => req(`/api/presets/${id}`, { method: "DELETE" }),
-
-  getSessions: () => req<{ sessions: Session[] }>("/api/sessions").then((r) => r.sessions),
-
-  getEstimate: (fromF: number, toF: number) =>
-    req<{ minutes: number; ratePerMin: number; samples: number }>(
-      `/api/estimate?from=${Math.round(fromF)}&to=${Math.round(toF)}`,
-    ),
-
-  getSettings: () => req<{ settings: Settings }>("/api/settings").then((r) => r.settings),
-  saveSettings: (patch: Partial<Settings>) =>
-    req<{ settings: Settings }>("/api/settings", {
-      method: "PUT",
-      body: JSON.stringify(patch),
-    }).then((r) => r.settings),
-
-  getVisits: () => req<{ visits: Visit[]; open: Visit | null }>("/api/visits"),
-  checkIn: () => post("/api/visits/checkin", {}),
-  checkOut: () => post("/api/visits/checkout", {}),
-
-  getPlunges: () => req<{ plunges: Plunge[] }>("/api/plunges").then((r) => r.plunges),
-  addPlunge: (durationSec: number, tempF?: number, note?: string) =>
-    post("/api/plunges", { durationSec, tempF, note }),
-
-  getService: () => req<{ service: ServiceState }>("/api/service").then((r) => r.service),
-  markCleaned: () => post("/api/service/cleaned", {}),
-  markServiced: () => post("/api/service/serviced", {}),
-
-  spotifyConnect: (refreshToken: string, clientId: string) =>
-    post("/api/spotify/connect", { refreshToken, clientId }),
-  spotifyStatus: () => req<{ connected: boolean }>("/api/spotify/status"),
-  spotifyDisconnect: () => post("/api/spotify/disconnect", {}),
-
-  getVapidPublic: () => req<{ publicKey: string | null }>("/api/push/vapid"),
-  pushSubscribe: (subscription: unknown) => post("/api/push/subscribe", { subscription }),
-  pushTest: () =>
-    req<{ subscriptions: number; sent: number; errors: string[] }>("/api/push/test", {
-      method: "POST",
-      body: JSON.stringify({}),
-    }),
-};
+export const api: SaunaBackend = getBackend();
 
 /**
  * Apply a preset: set temperature, timer, lights, then either start now or arm a
