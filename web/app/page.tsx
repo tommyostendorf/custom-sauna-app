@@ -12,6 +12,7 @@ import { PlungeLogger } from "@/components/PlungeLogger";
 import { Music } from "@/components/Music";
 import { History } from "@/components/History";
 import { More } from "@/components/More";
+import { Onboarding } from "@/components/Onboarding";
 
 type Tab = "control" | "activity" | "more";
 
@@ -30,6 +31,16 @@ export default function Home() {
   const toggleColdPlunge = (v: boolean) => {
     localStorage.setItem("hasColdPlunge", v ? "1" : "0");
     setHasColdPlunge(v);
+  };
+
+  // First-run onboarding (replayable from More).
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  useEffect(() => {
+    if (localStorage.getItem("onboarded") !== "1") setShowOnboarding(true);
+  }, []);
+  const closeOnboarding = () => {
+    localStorage.setItem("onboarded", "1");
+    setShowOnboarding(false);
   };
 
   const reloadSessions = useCallback(() => {
@@ -65,10 +76,20 @@ export default function Home() {
   const connected = sauna.status?.connected ?? false;
   const power = state?.power ?? false;
 
-  const togglePower = () => sauna.run(() => api.setPower(!power));
+  const togglePower = () =>
+    sauna.run(async () => {
+      const next = !power;
+      // Turning off with an active "you're in" session? Offer to end it too.
+      if (!next && openVisit && window.confirm("End your sauna session too?")) {
+        await api.checkOut();
+        reloadVisits();
+      }
+      await api.setPower(next);
+    });
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col px-4 pb-10 pt-[max(1rem,env(safe-area-inset-top))]">
+      {showOnboarding && <Onboarding connected={connected} onClose={closeOnboarding} />}
       {/* Header */}
       <header className="flex items-center justify-between py-3">
         <h1 className="text-xl font-semibold tracking-tight">{settings?.saunaName || "Sauna"}</h1>
@@ -132,6 +153,7 @@ export default function Home() {
           reloadService={reloadService}
           hasColdPlunge={hasColdPlunge}
           onToggleColdPlunge={toggleColdPlunge}
+          onReplaySetup={() => setShowOnboarding(true)}
         />
       )}
 

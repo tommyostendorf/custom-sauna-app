@@ -7,6 +7,8 @@
  */
 
 import 'dotenv/config';
+import * as path from 'path';
+import * as fs from 'fs';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { ClearlightDevice } from './gizwits/device';
@@ -351,6 +353,21 @@ app.post('/api/push/test', async (_req, res) => {
   const result = await sendToAll('Test notification ✅', 'Your sauna notifications are working.');
   res.json({ ok: true, ...result });
 });
+
+// Serve the built PWA (static export) if present — lets the bridge device host the
+// whole app itself, so the phone loads it same-origin (no CORS, no separate URL).
+const webDir = path.join(__dirname, '..', '..', 'web', 'out');
+if (fs.existsSync(webDir)) {
+  app.use(express.static(webDir));
+  // Fallback: any non-API GET serves the app shell (client handles the view).
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api/')) {
+      return res.sendFile(path.join(webDir, 'index.html'));
+    }
+    next();
+  });
+  console.log('[web] serving PWA from', webDir);
+}
 
 app.listen(PORT, () => {
   console.log(`Sauna bridge listening on http://0.0.0.0:${PORT}`);

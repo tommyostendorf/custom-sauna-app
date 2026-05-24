@@ -8,13 +8,13 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Sauna",
-  description: "Control your Clearlight sauna over the local network.",
+  title: "Insaunity",
+  description: "Control your infrared sauna over your local network — no cloud required.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Sauna",
+    title: "Insaunity",
   },
 };
 

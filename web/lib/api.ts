@@ -8,8 +8,10 @@
 
 import { Plunge, Preset, SaunaStatus, Session, ServiceState, Settings, Visit } from "./types";
 
-const BASE =
-  process.env.NEXT_PUBLIC_BRIDGE_URL?.replace(/\/$/, "") || "http://localhost:8787";
+// Default to same-origin (relative) so a bridge device that serves this app "just works"
+// with no config. Override with NEXT_PUBLIC_BRIDGE_URL for a split host+remote setup
+// (e.g. app on Vercel, bridge reached via a Tailscale HTTPS URL).
+const BASE = process.env.NEXT_PUBLIC_BRIDGE_URL?.replace(/\/$/, "") ?? "";
 const TOKEN = process.env.NEXT_PUBLIC_BRIDGE_TOKEN;
 
 async function req<T>(path: string, options: RequestInit = {}): Promise<T> {

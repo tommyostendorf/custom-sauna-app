@@ -13,6 +13,7 @@ interface Props {
   reloadService: () => void;
   hasColdPlunge: boolean;
   onToggleColdPlunge: (v: boolean) => void;
+  onReplaySetup: () => void;
 }
 
 const FEEDBACK_EMAIL = "sauna@tommyostendorf.com";
@@ -26,7 +27,7 @@ function dueStatus(lastISO: string | null, intervalDays: number): { text: string
   return { text: `due in ${daysLeft}d`, overdue: false };
 }
 
-export function More({ settings, reloadSettings, service, reloadService, hasColdPlunge, onToggleColdPlunge }: Props) {
+export function More({ settings, reloadSettings, service, reloadService, hasColdPlunge, onToggleColdPlunge, onReplaySetup }: Props) {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -221,6 +222,21 @@ export function More({ settings, reloadSettings, service, reloadService, hasCold
         </details>
       </Card>
 
+      {/* Setup & sharing guide */}
+      <Card>
+        <SectionLabel>Setup &amp; sharing</SectionLabel>
+        <p className="mb-3 text-sm text-muted">
+          Setting it up on a new sauna, or helping a friend get started? The full guide covers
+          everything — what to run, the Raspberry Pi option, and remote access.
+        </p>
+        <a
+          href="/setup/"
+          className="block rounded-2xl bg-ember py-3 text-center font-semibold text-black"
+        >
+          Open the setup guide
+        </a>
+      </Card>
+
       {/* Clearlight contact */}
       <Card>
         <SectionLabel>Sauna service &amp; support (Clearlight)</SectionLabel>
@@ -253,8 +269,17 @@ export function More({ settings, reloadSettings, service, reloadService, hasCold
         </a>
       </Card>
 
-      <p className="pb-2 text-center text-xs text-muted">
-        Independent app · works with Clearlight® saunas · not affiliated with Clearlight
+      <button
+        type="button"
+        onClick={onReplaySetup}
+        className="text-center text-sm text-muted underline-offset-2 hover:underline"
+      >
+        Replay the setup guide
+      </button>
+
+      <p className="px-2 pb-2 text-center text-xs text-muted">
+        Insaunity · independent, works with Clearlight® saunas · not affiliated with Clearlight.
+        Controls a high-heat appliance — use at your own risk, never leave it unattended. No warranty.
       </p>
     </div>
   );
