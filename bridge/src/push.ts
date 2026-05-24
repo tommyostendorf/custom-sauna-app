@@ -28,25 +28,34 @@ export function saveSubscription(sub: unknown): void {
   addSubscription(sub);
 }
 
+export interface SendResult {
+  subscriptions: number;
+  sent: number;
+  errors: string[];
+}
+
 /** Send a notification to every subscribed device. Prunes dead subscriptions. */
-export async function sendToAll(title: string, body: string): Promise<void> {
+export async function sendToAll(title: string, body: string): Promise<SendResult> {
   const subs = getPush().subscriptions;
-  if (subs.length === 0) return;
+  const result: SendResult = { subscriptions: subs.length, sent: 0, errors: [] };
   const payload = JSON.stringify({ title, body });
   await Promise.all(
     subs.map(async (sub) => {
       try {
         await webpush.sendNotification(sub as webpush.PushSubscription, payload);
+        result.sent += 1;
       } catch (err) {
         const status = (err as { statusCode?: number }).statusCode;
+        const msg = `${status ?? '?'}: ${(err as Error).message}`;
+        result.errors.push(msg);
         if (status === 404 || status === 410) {
-          // Subscription expired/invalid — remove it.
           const endpoint = (sub as { endpoint?: string }).endpoint;
           if (endpoint) removeSubscription(endpoint);
         } else {
-          console.warn('[push] send failed:', (err as Error).message);
+          console.warn('[push] send failed:', msg);
         }
       }
     }),
   );
+  return result;
 }

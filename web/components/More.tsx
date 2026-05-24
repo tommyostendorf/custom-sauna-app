@@ -52,8 +52,14 @@ export function More({ settings, reloadSettings, service, reloadService, hasCold
     }
   };
   const testPush = async () => {
-    await api.pushTest().catch(() => {});
-    setPushMsg("Test sent — check your notifications.");
+    try {
+      const r = await api.pushTest();
+      if (r.subscriptions === 0) setPushMsg("No device registered yet — tap Enable again.");
+      else if (r.sent > 0) setPushMsg(`Test sent to ${r.sent} device(s). Lock your phone to see it.`);
+      else setPushMsg(`Couldn't deliver: ${r.errors[0] ?? "unknown error"}`);
+    } catch {
+      setPushMsg("Couldn't reach the bridge for the test.");
+    }
   };
 
   useEffect(() => {

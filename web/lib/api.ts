@@ -89,7 +89,11 @@ export const api = {
 
   getVapidPublic: () => req<{ publicKey: string | null }>("/api/push/vapid"),
   pushSubscribe: (subscription: unknown) => post("/api/push/subscribe", { subscription }),
-  pushTest: () => post("/api/push/test", {}),
+  pushTest: () =>
+    req<{ subscriptions: number; sent: number; errors: string[] }>("/api/push/test", {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
 };
 
 /**

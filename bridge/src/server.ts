@@ -347,9 +347,9 @@ app.post('/api/push/subscribe', (req, res) => {
   saveSubscription(sub);
   res.json({ ok: true });
 });
-app.post('/api/push/test', (_req, res) => {
-  void sendToAll('Test notification ✅', 'Your sauna notifications are working.');
-  res.json({ ok: true });
+app.post('/api/push/test', async (_req, res) => {
+  const result = await sendToAll('Test notification ✅', 'Your sauna notifications are working.');
+  res.json({ ok: true, ...result });
 });
 
 app.listen(PORT, () => {
