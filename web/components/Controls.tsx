@@ -30,6 +30,35 @@ export function Controls({ state, busy, connected, run }: Props) {
   const [tempDraft, setTempDraft] = useState<number | null>(null);
   const shownTemp = tempDraft ?? target;
 
+  // "Ready by" scheduling
+  const [readyBy, setReadyBy] = useState("");
+  const [planMsg, setPlanMsg] = useState<string | null>(null);
+  const fmtTime = (d: Date) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+  const scheduleReadyBy = async () => {
+    if (!readyBy || !state) return;
+    const [h, m] = readyBy.split(":").map(Number);
+    const now = new Date();
+    const targetTime = new Date(now);
+    targetTime.setHours(h, m, 0, 0);
+    if (targetTime.getTime() <= now.getTime()) targetTime.setDate(targetTime.getDate() + 1);
+    const minutesUntilReady = Math.round((targetTime.getTime() - now.getTime()) / 60000);
+    try {
+      const est = await api.getEstimate(state.currentTemp.f, state.targetTemp.f);
+      const delay = minutesUntilReady - est.minutes;
+      if (delay <= 0) {
+        setPlanMsg(`Needs ~${est.minutes} min to heat — sooner than your time, so starting now.`);
+        run(() => api.setPower(true));
+      } else {
+        const startAt = new Date(now.getTime() + delay * 60000);
+        setPlanMsg(`Starts ${fmtTime(startAt)} so it's ready by ${fmtTime(targetTime)} (~${est.minutes} min to heat).`);
+        run(() => api.setDelayedStart(delay));
+      }
+    } catch {
+      setPlanMsg("Couldn't estimate heat-up time — try a manual delay below.");
+    }
+  };
+
   const setTemp = (value: number) => run(() => api.setTemperature(clampTemp(snap5(value))));
   const stepTemp = (delta: number) => {
     setTempDraft(null);
@@ -95,9 +124,9 @@ export function Controls({ state, busy, connected, run }: Props) {
         </div>
       </Card>
 
-      {/* Delayed start — only when the sauna is off, to avoid conflicting with a running session */}
+      {/* Schedule — only when the sauna is off, to avoid conflicting with a running session */}
       <Card>
-        <SectionLabel>Delayed start</SectionLabel>
+        <SectionLabel>Schedule</SectionLabel>
         {power ? (
           <p className="text-sm text-muted">Turn the sauna off to schedule a delayed start.</p>
         ) : state?.delayedStart.enabled ? (
@@ -115,12 +144,38 @@ export function Controls({ state, busy, connected, run }: Props) {
             </button>
           </div>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {DELAY_OPTIONS.map((m) => (
-              <Chip key={m} disabled={disabled} onClick={() => run(() => api.setDelayedStart(m))}>
-                In {m}m
-              </Chip>
-            ))}
+          <div className="flex flex-col gap-4">
+            <div>
+              <div className="mb-2 text-sm text-muted">Have it ready by:</div>
+              <div className="flex gap-2">
+                <input
+                  type="time"
+                  value={readyBy}
+                  disabled={disabled}
+                  onChange={(e) => setReadyBy(e.target.value)}
+                  className="flex-1 rounded-2xl border border-border bg-surface-2 px-4 py-3 text-text outline-none [color-scheme:dark] focus:border-ember"
+                />
+                <button
+                  type="button"
+                  disabled={disabled || !readyBy}
+                  onClick={scheduleReadyBy}
+                  className="rounded-2xl bg-ember px-5 py-3 font-medium text-black disabled:opacity-40"
+                >
+                  Schedule
+                </button>
+              </div>
+              {planMsg && <p className="mt-2 text-sm text-ember-soft">{planMsg}</p>}
+            </div>
+            <div>
+              <div className="mb-2 text-xs uppercase tracking-wider text-muted">or start in</div>
+              <div className="flex flex-wrap gap-2">
+                {DELAY_OPTIONS.map((m) => (
+                  <Chip key={m} disabled={disabled} onClick={() => run(() => api.setDelayedStart(m))}>
+                    In {m}m
+                  </Chip>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </Card>

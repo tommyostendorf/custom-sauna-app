@@ -67,7 +67,12 @@ interface Data {
   plunges: Plunge[];
   service: ServiceState;
   spotify: SpotifyAuth;
+  /** Learned heat-up rates in °F per minute (most recent last). */
+  heatRate: { samples: number[] };
 }
+
+/** Fallback heat-up rate (°F/min) before the sauna has learned its own. */
+export const DEFAULT_HEAT_RATE = 2.5;
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const DATA_FILE = path.join(DATA_DIR, 'store.json');
@@ -84,6 +89,7 @@ const DEFAULTS: Data = {
   plunges: [],
   service: { lastCleanedAt: null, cleanIntervalDays: 7, lastServicedAt: null, serviceIntervalDays: 180 },
   spotify: { refreshToken: null, clientId: null },
+  heatRate: { samples: [] },
 };
 
 let data: Data = DEFAULTS;
@@ -244,5 +250,20 @@ export function setSpotify(refreshToken: string, clientId: string): SpotifyAuth 
 
 export function clearSpotify(): void {
   data.spotify = { refreshToken: null, clientId: null };
+  save();
+}
+
+// --- Heat-up rate learning ---
+/** Average learned heat-up rate (°F/min), or the default if none recorded yet. */
+export function getHeatRate(): { ratePerMin: number; samples: number } {
+  const s = data.heatRate.samples;
+  if (s.length === 0) return { ratePerMin: DEFAULT_HEAT_RATE, samples: 0 };
+  const avg = s.reduce((a, b) => a + b, 0) / s.length;
+  return { ratePerMin: avg, samples: s.length };
+}
+
+export function addHeatSample(ratePerMin: number): void {
+  data.heatRate.samples.push(ratePerMin);
+  if (data.heatRate.samples.length > 10) data.heatRate.samples.shift();
   save();
 }

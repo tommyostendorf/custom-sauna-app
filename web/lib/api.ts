@@ -58,6 +58,11 @@ export const api = {
 
   getSessions: () => req<{ sessions: Session[] }>("/api/sessions").then((r) => r.sessions),
 
+  getEstimate: (fromF: number, toF: number) =>
+    req<{ minutes: number; ratePerMin: number; samples: number }>(
+      `/api/estimate?from=${Math.round(fromF)}&to=${Math.round(toF)}`,
+    ),
+
   getSettings: () => req<{ settings: Settings }>("/api/settings").then((r) => r.settings),
   saveSettings: (patch: Partial<Settings>) =>
     req<{ settings: Settings }>("/api/settings", {

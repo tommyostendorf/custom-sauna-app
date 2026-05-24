@@ -21,6 +21,7 @@ import {
   getPlunges, addPlunge,
   getService, markCleaned, markServiced,
   setSpotify, clearSpotify,
+  getHeatRate, addHeatSample,
 } from './store';
 
 // --- Config ---
@@ -88,9 +89,26 @@ device.on('disconnected', () => {
   }
 });
 
+// Track the start of a heat-up so we can learn the sauna's °F/min rate.
+let heatStart: { ms: number; temp: number } | null = null;
+
 // Auto-log sessions by watching power transitions in the state stream.
 device.on('state', (state: SaunaState, prev: SaunaState | null) => {
   if (state.power) updateOpenSessionMaxTemp(state.currentTemp);
+
+  // --- Heat-up rate learning ---
+  if (prev && !prev.power && state.power) heatStart = { ms: Date.now(), temp: state.currentTemp };
+  if (!state.power) heatStart = null;
+  if (state.power && heatStart && state.currentTemp - heatStart.temp >= 10) {
+    const minutes = (Date.now() - heatStart.ms) / 60000;
+    const rate = minutes > 0 ? (state.currentTemp - heatStart.temp) / minutes : 0;
+    if (rate > 0.2 && rate < 20) {
+      addHeatSample(rate);
+      console.log(`[heat] learned rate ${rate.toFixed(2)} °F/min`);
+    }
+    heatStart = null; // one sample per heat-up
+  }
+
   if (prev && state.power !== prev.power) {
     if (state.power) {
       startSession(state.currentTemp);
@@ -236,6 +254,18 @@ app.delete('/api/presets/:id', (req, res) => {
 
 // --- Session history ---
 app.get('/api/sessions', (_req, res) => res.json({ sessions: getSessions() }));
+
+// --- Heat-up estimate (for "Ready by" scheduling) ---
+app.get('/api/estimate', (req, res) => {
+  const from = Number(req.query.from);
+  const to = Number(req.query.to);
+  const { ratePerMin, samples } = getHeatRate();
+  if (!Number.isFinite(from) || !Number.isFinite(to)) {
+    return res.status(400).json({ error: 'Pass numeric ?from= and ?to= (Fahrenheit)' });
+  }
+  const minutes = to > from ? Math.max(1, Math.round((to - from) / ratePerMin)) : 0;
+  res.json({ minutes, ratePerMin: Math.round(ratePerMin * 10) / 10, samples });
+});
 
 // --- Settings ---
 app.get('/api/settings', (_req, res) => res.json({ settings: getSettings() }));
