@@ -220,9 +220,9 @@ export function Controls({ state, busy, connected, run }: Props) {
             />
           </div>
           <div className="flex items-center justify-between">
-            <span>External light</span>
+            <span>Wall light</span>
             <Toggle
-              label="External light"
+              label="Wall light"
               disabled={disabled}
               on={state?.lights.external ?? false}
               onChange={(v) => run(() => api.setLight("external", v))}

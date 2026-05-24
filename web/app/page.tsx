@@ -115,7 +115,7 @@ export default function Home() {
       {/* Tab content */}
       {tab === "control" && (
         <div className="flex flex-col gap-4">
-          <CheckInCard openVisit={openVisit} reload={reloadVisits} />
+          <CheckInCard openVisit={openVisit} canCheckIn={connected && power} reload={reloadVisits} />
           <Controls state={state} busy={sauna.busy} connected={connected} run={sauna.run} />
           {hasColdPlunge && <PlungeLogger reload={reloadPlunges} />}
           <Music />
