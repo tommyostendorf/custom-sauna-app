@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { SaunaState } from "@/lib/types";
-import { launchMusic } from "@/lib/music";
 import { Card, Chip, RoundButton, SectionLabel, Toggle } from "./ui";
 
 interface Props {
@@ -150,15 +149,6 @@ export function Controls({ state, busy, connected, run }: Props) {
           </div>
         </div>
       </Card>
-
-      {/* Music */}
-      <button
-        type="button"
-        onClick={launchMusic}
-        className="flex w-full items-center justify-center gap-2 rounded-3xl border border-border bg-surface py-4 font-medium text-text transition active:scale-[0.99]"
-      >
-        🎵 Start music
-      </button>
     </div>
   );
 }

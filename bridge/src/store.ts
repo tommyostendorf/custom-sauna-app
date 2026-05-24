@@ -54,6 +54,11 @@ export interface ServiceState {
   serviceIntervalDays: number;
 }
 
+export interface SpotifyAuth {
+  refreshToken: string | null;
+  clientId: string | null;
+}
+
 interface Data {
   presets: Preset[];
   sessions: Session[];
@@ -61,6 +66,7 @@ interface Data {
   visits: Visit[];
   plunges: Plunge[];
   service: ServiceState;
+  spotify: SpotifyAuth;
 }
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
@@ -77,6 +83,7 @@ const DEFAULTS: Data = {
   visits: [],
   plunges: [],
   service: { lastCleanedAt: null, cleanIntervalDays: 7, lastServicedAt: null, serviceIntervalDays: 180 },
+  spotify: { refreshToken: null, clientId: null },
 };
 
 let data: Data = DEFAULTS;
@@ -224,4 +231,18 @@ export function markServiced(): ServiceState {
   data.service.lastServicedAt = new Date().toISOString();
   save();
   return data.service;
+}
+
+// --- Spotify auth (for bridge-side auto-pause) ---
+export const getSpotify = (): SpotifyAuth => data.spotify;
+
+export function setSpotify(refreshToken: string, clientId: string): SpotifyAuth {
+  data.spotify = { refreshToken, clientId };
+  save();
+  return data.spotify;
+}
+
+export function clearSpotify(): void {
+  data.spotify = { refreshToken: null, clientId: null };
+  save();
 }

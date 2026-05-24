@@ -76,6 +76,11 @@ export const api = {
   getService: () => req<{ service: ServiceState }>("/api/service").then((r) => r.service),
   markCleaned: () => post("/api/service/cleaned", {}),
   markServiced: () => post("/api/service/serviced", {}),
+
+  spotifyConnect: (refreshToken: string, clientId: string) =>
+    post("/api/spotify/connect", { refreshToken, clientId }),
+  spotifyStatus: () => req<{ connected: boolean }>("/api/spotify/status"),
+  spotifyDisconnect: () => post("/api/spotify/disconnect", {}),
 };
 
 /**

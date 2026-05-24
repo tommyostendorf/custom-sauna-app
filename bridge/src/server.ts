@@ -12,6 +12,7 @@ import cors from 'cors';
 import { ClearlightDevice } from './gizwits/device';
 import { SaunaState } from './gizwits/protocol';
 import { findSaunaIp } from './findSauna';
+import { isSpotifyConnected, pausePlayback } from './spotify';
 import {
   getPresets, savePreset, deletePreset,
   getSessions, startSession, endSession, updateOpenSessionMaxTemp,
@@ -19,6 +20,7 @@ import {
   getVisits, getOpenVisit, checkInVisit, checkOutVisit,
   getPlunges, addPlunge,
   getService, markCleaned, markServiced,
+  setSpotify, clearSpotify,
 } from './store';
 
 // --- Config ---
@@ -90,8 +92,15 @@ device.on('disconnected', () => {
 device.on('state', (state: SaunaState, prev: SaunaState | null) => {
   if (state.power) updateOpenSessionMaxTemp(state.currentTemp);
   if (prev && state.power !== prev.power) {
-    if (state.power) startSession(state.currentTemp);
-    else endSession();
+    if (state.power) {
+      startSession(state.currentTemp);
+    } else {
+      endSession();
+      // Sauna just turned off — pause the music too (even if Tommy already left).
+      if (isSpotifyConnected()) {
+        pausePlayback().then((ok) => console.log('[spotify] auto-pause on power-off:', ok));
+      }
+    }
   } else if (!prev && state.power) {
     // First state we ever saw and it's already on — begin a session.
     startSession(state.currentTemp);
@@ -258,6 +267,21 @@ app.post('/api/plunges', (req, res) => {
 app.get('/api/service', (_req, res) => res.json({ service: getService() }));
 app.post('/api/service/cleaned', (_req, res) => res.json({ ok: true, service: markCleaned() }));
 app.post('/api/service/serviced', (_req, res) => res.json({ ok: true, service: markServiced() }));
+
+// --- Spotify (bridge stores the refresh token so it can auto-pause on power-off) ---
+app.get('/api/spotify/status', (_req, res) => res.json({ connected: isSpotifyConnected() }));
+app.post('/api/spotify/connect', (req, res) => {
+  const { refreshToken, clientId } = req.body ?? {};
+  if (typeof refreshToken !== 'string' || typeof clientId !== 'string') {
+    return res.status(400).json({ error: 'Body must be { refreshToken, clientId }' });
+  }
+  setSpotify(refreshToken, clientId);
+  res.json({ ok: true });
+});
+app.post('/api/spotify/disconnect', (_req, res) => {
+  clearSpotify();
+  res.json({ ok: true });
+});
 
 app.listen(PORT, () => {
   console.log(`Sauna bridge listening on http://0.0.0.0:${PORT}`);

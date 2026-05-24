@@ -9,6 +9,7 @@ import { StatusGauge } from "@/components/StatusGauge";
 import { PowerButton } from "@/components/PowerButton";
 import { Controls } from "@/components/Controls";
 import { CheckInCard } from "@/components/CheckInCard";
+import { Music } from "@/components/Music";
 import { Presets } from "@/components/Presets";
 import { History } from "@/components/History";
 import { More } from "@/components/More";
@@ -120,6 +121,7 @@ export default function Home() {
         <div className="flex flex-col gap-4">
           <CheckInCard openVisit={openVisit} reload={reloadVisits} />
           <Controls state={state} busy={sauna.busy} connected={connected} run={sauna.run} />
+          <Music />
         </div>
       )}
       {tab === "presets" && (
