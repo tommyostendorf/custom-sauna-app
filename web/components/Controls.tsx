@@ -133,16 +133,19 @@ export function Controls({ state, busy, connected, run }: Props) {
       {/* Timer */}
       <Card>
         <SectionLabel>Session length</SectionLabel>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {TIMER_OPTIONS.map((m) => (
-            <Chip
+            <button
               key={m}
+              type="button"
               disabled={disabled}
-              active={state?.timerMinutes === m}
               onClick={() => run(() => api.setTimer(m))}
+              className={`rounded-full py-2 text-center text-sm font-medium transition active:scale-95 disabled:opacity-40 ${
+                state?.timerMinutes === m ? "bg-ember text-black" : "border border-border bg-surface-2 text-text"
+              }`}
             >
-              {m} min
-            </Chip>
+              {m}m
+            </button>
           ))}
         </div>
       </Card>
