@@ -9,14 +9,28 @@ protocol — no cloud, no subscription.
 - **`bridge/`** — a small always-on Node.js + TypeScript service. It speaks the Gizwits
   protocol to the sauna and exposes a simple HTTP REST API. This is the only thing that
   touches the sauna. Runs on the iMac in production; developed/tested on the MacBook.
-- **(root, coming next)** — a Next.js PWA on Vercel. The UI. Only calls the bridge API;
-  never speaks the sauna protocol directly.
+- **`web/`** — a Next.js static-export PWA (the UI). Only calls the bridge API; never
+  speaks the sauna protocol directly. The bridge serves this app same-origin, and
+  **Tailscale** exposes the bridge so the phone can reach it from any network. One-command
+  install + auto-start on the iMac: `bridge/setup-imac.sh`.
+
+## Direction note (2026-05-26)
+A native iOS/App-Store app via **Capacitor** (sauna protocol running on the phone, no
+bridge) was explored and **abandoned**. Reason: the sauna is 2.4GHz-only and usually sits
+on a different network than the phone, so LAN-only native can't reach it; Tailscale + the
+bridge already solve cross-network access. This is a **hobby** project, not commercial.
+The native experiment is archived on branch `feature/capacitor-mobile` (do not merge).
+See project memory `insaunity-mobile-pivot.md`. Don't re-attempt native without a new reason.
 
 ## How the sauna is reached
-- Connect by **direct IP** (currently `192.168.86.48`), NOT broadcast discovery —
-  Google WiFi mesh drops the discovery broadcast and the sauna's responder is flaky.
-- Pin the IP with a **DHCP reservation** in the Google Home app so it never changes.
-- The sauna's main power must be ON for the WiFi module to answer on the LAN.
+- Connect by **direct IP** (currently `192.168.86.216` — **source of truth is
+  `bridge/.env` `SAUNA_HOST`**; it drifts on reboots, was `.48` originally), NOT broadcast
+  discovery — Google WiFi mesh drops the discovery broadcast and the sauna's responder is flaky.
+- The sauna is **2.4GHz-only** and joins via a Linksys extender ("barlow_ext") that bridges
+  it onto the Google network. Keep that extender powered/online — it's the linchpin.
+- A DHCP reservation was attempted but hasn't held; the bridge can also auto-find the sauna.
+- The sauna's main power must be ON for the WiFi module to answer on the LAN. **Don't
+  wall-power-cycle it casually** — the 2.4GHz module is slow/flaky to rejoin WiFi.
 - Protocol facts: TCP control port 12416; temps are Fahrenheit internally; timer in minutes.
 
 ## Protocol engine
