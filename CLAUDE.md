@@ -14,6 +14,15 @@ protocol — no cloud, no subscription.
   **Tailscale** exposes the bridge so the phone can reach it from any network. One-command
   install + auto-start on the iMac: `bridge/setup-imac.sh`.
 
+## Network access & security
+- The bridge has **no auth by default** and controls a heater, so access control is
+  network-level: it binds to **`127.0.0.1` only** (`BIND_HOST`, default localhost), so the
+  *only* way in is via **Tailscale** (`tailscale serve` proxies the tailnet → localhost).
+  Other devices on the WiFi can't reach it. Set `BIND_HOST=0.0.0.0` to expose on the LAN.
+- Debugging consequence: from another machine, hit the bridge at its **Tailscale HTTPS URL**
+  (e.g. `https://<host>.<tailnet>.ts.net/api/health`), NOT `IP:8787` (that port is now
+  closed off-box). On the iMac itself, `curl localhost:8787` still works.
+
 ## Direction note (2026-05-26)
 A native iOS/App-Store app via **Capacitor** (sauna protocol running on the phone, no
 bridge) was explored and **abandoned**. Reason: the sauna is 2.4GHz-only and usually sits
