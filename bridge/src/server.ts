@@ -120,17 +120,29 @@ setInterval(() => {
 // Track the start of a heat-up so we can learn the sauna's °F/min rate.
 let heatStart: { ms: number; temp: number } | null = null;
 
+// Whether we've already sent the "sauna ready" notification for the current session.
+// Reset when the sauna powers on, so each session notifies exactly once — without this,
+// every reheat cycle (drift a degree below target, climb back) fires another alert.
+let readyNotified = false;
+
 // Auto-log sessions by watching power transitions in the state stream.
 device.on('state', (state: SaunaState, prev: SaunaState | null) => {
   if (state.power) updateOpenSessionMaxTemp(state.currentTemp);
 
-  // --- Notify when the sauna reaches target temperature (once per crossing) ---
-  if (state.power && prev && prev.currentTemp < state.setTemp && state.currentTemp >= state.setTemp) {
+  // --- Notify when the sauna reaches target temperature (once per session) ---
+  if (
+    state.power && prev && !readyNotified &&
+    prev.currentTemp < state.setTemp && state.currentTemp >= state.setTemp
+  ) {
+    readyNotified = true;
     void sendToAll('Sauna ready 🔥', `Your sauna has reached ${state.setTemp}°F.`);
   }
 
   // --- Heat-up rate learning ---
-  if (prev && !prev.power && state.power) heatStart = { ms: Date.now(), temp: state.currentTemp };
+  if (prev && !prev.power && state.power) {
+    heatStart = { ms: Date.now(), temp: state.currentTemp };
+    readyNotified = false; // new session — allow one "ready" notification again
+  }
   if (!state.power) heatStart = null;
   if (state.power && heatStart && state.currentTemp - heatStart.temp >= 10) {
     const minutes = (Date.now() - heatStart.ms) / 60000;
