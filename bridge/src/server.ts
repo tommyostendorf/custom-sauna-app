@@ -33,6 +33,13 @@ const PORT = Number(process.env.PORT ?? 8787);
 const BRIDGE_TOKEN = process.env.BRIDGE_TOKEN?.trim() || null;
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? '*').trim();
 
+// Network interface to bind to. Defaults to localhost so the ONLY way in is via
+// Tailscale (which proxies the tailnet to 127.0.0.1) — this keeps other devices on
+// the same WiFi from reaching the bridge directly, which matters because there's no
+// auth by default and the bridge controls a heater. Set BIND_HOST=0.0.0.0 to expose
+// it on the whole local network instead (less safe; only do this on a trusted LAN).
+const BIND_HOST = (process.env.BIND_HOST ?? '127.0.0.1').trim();
+
 if (!SAUNA_HOST) {
   console.error('FATAL: SAUNA_HOST is not set. Copy .env.example to .env and set the sauna IP.');
   process.exit(1);
@@ -369,8 +376,13 @@ if (fs.existsSync(webDir)) {
   console.log('[web] serving PWA from', webDir);
 }
 
-app.listen(PORT, () => {
-  console.log(`Sauna bridge listening on http://0.0.0.0:${PORT}`);
+app.listen(PORT, BIND_HOST, () => {
+  console.log(`Sauna bridge listening on http://${BIND_HOST}:${PORT}`);
   console.log(`  -> talking to sauna at ${SAUNA_HOST}`);
   console.log(`  -> auth: ${BRIDGE_TOKEN ? 'token required' : 'OPEN (no token set)'}`);
+  console.log(
+    `  -> reach: ${BIND_HOST === '127.0.0.1' || BIND_HOST === 'localhost'
+      ? 'localhost + Tailscale only (other LAN devices blocked)'
+      : `bound to ${BIND_HOST} (reachable across the network)`}`,
+  );
 });
