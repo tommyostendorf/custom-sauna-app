@@ -33,6 +33,13 @@ const PORT = Number(process.env.PORT ?? 8787);
 const BRIDGE_TOKEN = process.env.BRIDGE_TOKEN?.trim() || null;
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? '*').trim();
 
+// Network interface to bind to. Defaults to localhost so the ONLY way in is via
+// Tailscale (which proxies the tailnet to 127.0.0.1) — this keeps other devices on
+// the same WiFi from reaching the bridge directly, which matters because there's no
+// auth by default and the bridge controls a heater. Set BIND_HOST=0.0.0.0 to expose
+// it on the whole local network instead (less safe; only do this on a trusted LAN).
+const BIND_HOST = (process.env.BIND_HOST ?? '127.0.0.1').trim();
+
 if (!SAUNA_HOST) {
   console.error('FATAL: SAUNA_HOST is not set. Copy .env.example to .env and set the sauna IP.');
   process.exit(1);
@@ -113,17 +120,29 @@ setInterval(() => {
 // Track the start of a heat-up so we can learn the sauna's °F/min rate.
 let heatStart: { ms: number; temp: number } | null = null;
 
+// Whether we've already sent the "sauna ready" notification for the current session.
+// Reset when the sauna powers on, so each session notifies exactly once — without this,
+// every reheat cycle (drift a degree below target, climb back) fires another alert.
+let readyNotified = false;
+
 // Auto-log sessions by watching power transitions in the state stream.
 device.on('state', (state: SaunaState, prev: SaunaState | null) => {
   if (state.power) updateOpenSessionMaxTemp(state.currentTemp);
 
-  // --- Notify when the sauna reaches target temperature (once per crossing) ---
-  if (state.power && prev && prev.currentTemp < state.setTemp && state.currentTemp >= state.setTemp) {
+  // --- Notify when the sauna reaches target temperature (once per session) ---
+  if (
+    state.power && prev && !readyNotified &&
+    prev.currentTemp < state.setTemp && state.currentTemp >= state.setTemp
+  ) {
+    readyNotified = true;
     void sendToAll('Sauna ready 🔥', `Your sauna has reached ${state.setTemp}°F.`);
   }
 
   // --- Heat-up rate learning ---
-  if (prev && !prev.power && state.power) heatStart = { ms: Date.now(), temp: state.currentTemp };
+  if (prev && !prev.power && state.power) {
+    heatStart = { ms: Date.now(), temp: state.currentTemp };
+    readyNotified = false; // new session — allow one "ready" notification again
+  }
   if (!state.power) heatStart = null;
   if (state.power && heatStart && state.currentTemp - heatStart.temp >= 10) {
     const minutes = (Date.now() - heatStart.ms) / 60000;
@@ -369,8 +388,13 @@ if (fs.existsSync(webDir)) {
   console.log('[web] serving PWA from', webDir);
 }
 
-app.listen(PORT, () => {
-  console.log(`Sauna bridge listening on http://0.0.0.0:${PORT}`);
+app.listen(PORT, BIND_HOST, () => {
+  console.log(`Sauna bridge listening on http://${BIND_HOST}:${PORT}`);
   console.log(`  -> talking to sauna at ${SAUNA_HOST}`);
   console.log(`  -> auth: ${BRIDGE_TOKEN ? 'token required' : 'OPEN (no token set)'}`);
+  console.log(
+    `  -> reach: ${BIND_HOST === '127.0.0.1' || BIND_HOST === 'localhost'
+      ? 'localhost + Tailscale only (other LAN devices blocked)'
+      : `bound to ${BIND_HOST} (reachable across the network)`}`,
+  );
 });
