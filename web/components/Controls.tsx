@@ -12,10 +12,10 @@ interface Props {
   run: (action: () => Promise<unknown>) => Promise<void>;
 }
 
-const TIMER_OPTIONS = [15, 30, 45, 60];
+const TIMER_OPTIONS = [15, 30, 60, 90];
 const DELAY_OPTIONS = [15, 30, 45, 60];
 const TEMP_MIN = 100;
-const TEMP_MAX = 180;
+const TEMP_MAX = 165;
 
 /** Round to the nearest multiple of 5 (fixes the odd-number stepping). */
 const snap5 = (n: number) => Math.round(n / 5) * 5;

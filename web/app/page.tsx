@@ -84,6 +84,13 @@ export default function Home() {
         await api.checkOut();
         reloadVisits();
       }
+      if (next) {
+        // Always start with a full preheat: 160°F for 90 min. A shorter timer can
+        // expire (heaters cut off) before the cabin reaches temp — and before you're
+        // even in. Set these before powering on so the session begins at full target.
+        await api.setTemperature(160, "F");
+        await api.setTimer(90);
+      }
       await api.setPower(next);
     });
 

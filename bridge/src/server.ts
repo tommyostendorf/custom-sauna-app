@@ -227,8 +227,8 @@ app.post('/api/temperature', (req, res) => {
 // --- Timer (session length, minutes) ---
 app.post('/api/timer', (req, res) => {
   const { minutes } = req.body ?? {};
-  if (typeof minutes !== 'number' || minutes < 0 || minutes > 60) {
-    return res.status(400).json({ error: 'Body must be { minutes: 0-60 }' });
+  if (typeof minutes !== 'number' || minutes < 0 || minutes > 359) {
+    return res.status(400).json({ error: 'Body must be { minutes: 0-359 }' });
   }
   runControl(res, () => device.setTimer(Math.round(minutes)));
 });

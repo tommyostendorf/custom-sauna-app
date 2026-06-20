@@ -22,6 +22,7 @@ import {
   buildFlagControl,
   buildTempControl,
   buildSpectrumControl,
+  buildHourControl,
   buildMinuteControl,
   buildPreHourControl,
   buildPreMinuteControl,
@@ -364,9 +365,16 @@ export class ClearlightDevice extends EventEmitter {
   }
 
   async setTimer(minutes: number): Promise<void> {
+    // The sauna stores the session length as separate hour + minute fields, and the
+    // minute field maxes out at 60 — so anything over an hour (e.g. 90 min) must be
+    // split into hours + remaining minutes. Send both commands.
+    const clamped = Math.max(0, Math.min(23 * 60 + 59, Math.round(minutes)));
+    const hours = Math.floor(clamped / 60);
+    const mins = clamped % 60;
+    await this.sendControl(buildHourControl(hours));
+    await this.sendControl(buildMinuteControl(mins));
     // Timer state verification is approximate (setMinute may be 0 if not in pre-time mode)
-    await this.sendControl(buildMinuteControl(minutes));
-    this.log('Timer set to %d minutes (state verification skipped for timer)', minutes);
+    this.log('Timer set to %dh%dm (state verification skipped for timer)', hours, mins);
   }
 
   /**
